@@ -7,6 +7,11 @@ Sub TransposerDonneesSelectionnees()
     Dim destCol As Long
     Dim destRow As Long
     Dim startCol As Long
+    Dim maxCol As Long
+    Dim currentGroup As Long
+
+    ' Définir la colonne maximale (P = 16)
+    maxCol = 16
 
     ' Désactiver les mises à jour de l'écran et les calculs automatiques pour accélérer l'exécution
     Application.ScreenUpdating = False
@@ -35,13 +40,28 @@ Sub TransposerDonneesSelectionnees()
     destCol = 1
     destRow = 1
     startCol = 1
+    currentGroup = 0
 
     ' Transposer les données
     For i = 1 To lastRow
         ' Vérifier si la cellule dans la colonne H contient une lettre
         If Not IsNumeric(wsSource.Cells(i, 8).Value) And wsSource.Cells(i, 8).Value <> "" Then
-            destRow = destRow + 4 ' Sauter trois lignes
-            destCol = 1 ' Réinitialiser la colonne à la première
+            currentGroup = currentGroup + 1
+            ' Vérifier si on est déjà au début d'une ligne
+            If destCol = 1 Then
+                ' Si on est déjà au début d'une ligne, ajouter 4 lignes
+                destRow = destRow + 4
+            Else
+                ' Si on n'est pas au début d'une ligne, passer à la ligne suivante
+                destCol = 1
+                destRow = destRow + 4
+            End If
+        End If
+
+        ' Vérifier si nous avons atteint la colonne maximale et si ce n'est pas un nouveau groupe
+        If destCol > maxCol Then
+            destCol = 1
+            destRow = destRow + 4
         End If
 
         ' Transposer les données
@@ -92,6 +112,10 @@ Sub FusionnerCellulesMemeLigne()
     Dim lastCol As Long
     Dim i As Long, j As Long
     Dim startCol As Long
+    Dim maxCol As Long
+    
+    ' Définir la colonne maximale (P = 16)
+    maxCol = 16
     
     Application.DisplayAlerts = False
 
@@ -100,49 +124,52 @@ Sub FusionnerCellulesMemeLigne()
 
     ' Trouver la dernière ligne et la dernière colonne des données
     lastRow = ws.Cells(ws.Rows.Count, "A").End(xlUp).Row
-    lastCol = 50
-
-    ' Parcourir les lignes de la feuille
-    For i = 1 To lastRow
-        startCol = 1 ' Initialiser startCol à la première colonne de la ligne
-
-        ' Parcourir les colonnes de la ligne
-        For j = 2 To lastCol
-            ' Vérifier si la cellule actuelle et la cellule de départ ne sont pas vides
-            If Not IsEmpty(ws.Cells(i, startCol)) And Not IsEmpty(ws.Cells(i, j)) Then
-                ' Vérifier si la valeur de la cellule actuelle est égale à la valeur de la cellule de départ
-                If ws.Cells(i, j).Value <> ws.Cells(i, startCol).Value Then
-                    ' Fusionner les cellules de la même valeur
-                    If j - startCol > 1 Then
-                        ws.Range(ws.Cells(i, startCol), ws.Cells(i, j - 1)).Merge
-                        ws.Cells(i, startCol).HorizontalAlignment = xlCenter
+    
+    ' Parcourir les lignes de la feuille par groupe de 4 lignes
+    For i = 1 To lastRow Step 4
+        For rowOffset = 0 To 2 ' Traiter les 3 premières lignes de chaque groupe de 4
+            Dim currentRow As Long
+            currentRow = i + rowOffset
+            
+            If currentRow <= lastRow Then
+                startCol = 1 ' Initialiser startCol à la première colonne de la ligne
+    
+                ' Parcourir les colonnes de la ligne, limité à maxCol
+                For j = 2 To maxCol
+                    ' Vérifier si la cellule actuelle et la cellule de départ ne sont pas vides
+                    If Not IsEmpty(ws.Cells(currentRow, startCol)) And Not IsEmpty(ws.Cells(currentRow, j)) Then
+                        ' Vérifier si la valeur de la cellule actuelle est égale à la valeur de la cellule de départ
+                        If ws.Cells(currentRow, j).Value <> ws.Cells(currentRow, startCol).Value Then
+                            ' Fusionner les cellules de la même valeur
+                            If j - startCol > 1 Then
+                                ws.Range(ws.Cells(currentRow, startCol), ws.Cells(currentRow, j - 1)).Merge
+                                ws.Cells(currentRow, startCol).HorizontalAlignment = xlCenter
+                            End If
+                            startCol = j ' Réinitialiser startCol à la colonne actuelle
+                        End If
+                    ElseIf Not IsEmpty(ws.Cells(currentRow, startCol)) And IsEmpty(ws.Cells(currentRow, j)) Then
+                        ' Fusionner jusqu'à la cellule actuelle si elle est vide
+                        If j - startCol > 1 Then
+                            ws.Range(ws.Cells(currentRow, startCol), ws.Cells(currentRow, j - 1)).Merge
+                            ws.Cells(currentRow, startCol).HorizontalAlignment = xlCenter
+                        End If
+                        startCol = j + 1 ' Ignorer la cellule vide et passer à la suivante
+                    Else
+                        startCol = j + 1 ' Ignorer la cellule vide et passer à la suivante
                     End If
-                    startCol = j ' Réinitialiser startCol à la colonne actuelle
+                Next j
+                
+                ' Fusionner les cellules restantes à la fin de la ligne si elles sont égales et non vides
+                If j - startCol > 1 And Not IsEmpty(ws.Cells(currentRow, startCol)) Then
+                    ws.Range(ws.Cells(currentRow, startCol), ws.Cells(currentRow, maxCol)).Merge
+                    ws.Cells(currentRow, startCol).HorizontalAlignment = xlCenter
                 End If
-            ElseIf Not IsEmpty(ws.Cells(i, startCol)) And IsEmpty(ws.Cells(i, j)) Then
-                ' Fusionner jusqu'à la cellule actuelle si elle est vide
-                If j - startCol > 1 Then
-                    ws.Range(ws.Cells(i, startCol), ws.Cells(i, j - 1)).Merge
-                    ws.Cells(i, startCol).HorizontalAlignment = xlCenter
-                End If
-                startCol = j + 1 ' Ignorer la cellule vide et passer à la suivante
-            Else
-                startCol = j + 1 ' Ignorer la cellule vide et passer à la suivante
             End If
-        Next j
-        
-        ' Fusionner les cellules restantes à la fin de la ligne si elles sont égales et non vides
-        If j - startCol > 1 And Not IsEmpty(ws.Cells(i, startCol)) Then
-            ws.Range(ws.Cells(i, startCol), ws.Cells(i, lastCol)).Merge
-            ws.Cells(i, startCol).HorizontalAlignment = xlCenter
-        End If
+        Next rowOffset
     Next i
     
     Application.DisplayAlerts = True
-
-
 End Sub
-
 
 Sub AjusterDimensions()
     Dim i As Long
@@ -185,157 +212,36 @@ Sub AjusterDimensions()
         End If
     Next i
 
-    ' Ajuster la largeur des 50 premières colonnes
-    ws.Columns("A:AX").ColumnWidth = 8.5
+    ' Ajuster uniquement la largeur des 16 premières colonnes (A à P)
+    ws.Columns("A:P").ColumnWidth = 8.5
     
     ' Réactiver les mises à jour de l'écran et les calculs automatiques
     Application.ScreenUpdating = True
     Application.Calculation = xlCalculationAutomatic
-    
 End Sub
 
 
 Sub CentrerCellules()
     Dim ws As Worksheet
     Dim usedRange As Range
+    Dim maxCol As Long
+    
+    maxCol = 16 ' Colonne P
 
     ' Définir la feuille de travail cible
     Set ws = ThisWorkbook.Sheets("Transposé")
 
-    ' Définir la plage utilisée dans la feuille de travail
-    Set usedRange = ws.usedRange
+    ' Définir la plage utilisée dans la feuille de travail (limitée à la colonne P)
+    Set usedRange = ws.Range(ws.Cells(1, 1), ws.Cells(ws.Cells(ws.Rows.Count, "A").End(xlUp).Row, maxCol))
 
     ' Centrer horizontalement et verticalement les cellules de la plage utilisée
     With usedRange
         .HorizontalAlignment = xlCenter
         .VerticalAlignment = xlCenter
         .WrapText = True
-    End With
-
-    
+    End With  
 End Sub
 
-'Sub AjusterContenuCellules()
-'    Dim ws As Worksheet
-'    Dim cell As Range
-'    Dim cellText As String
-'    Dim fontSize As Double
-'    Dim maxWidth As Double
-'    Dim maxHeight As Double
-'    Dim isFitting As Boolean
-'    Dim tempShape As Shape
-'    Dim minFontSize As Double
-'
-'    ' Définir la feuille de travail cible
-'    Set ws = ThisWorkbook.Sheets("Transposé") ' Remplacez "Feuil1" par le nom de votre feuille si nécessaire
-'
-'    ' Désactiver les mises à jour de l'écran pour accélérer l'exécution
-'    Application.ScreenUpdating = False
-'
-'    minFontSize = 8 ' Définir une taille de police minimale
-'
-'    ' Définir la plage de cellules à ajuster
-'    For Each cell In ws.usedRange
-'        If Not IsEmpty(cell) Then
-'            cellText = cell.Value
-'            maxWidth = cell.Width
-'            maxHeight = cell.Height
-'            fontSize = 20 ' Démarrer avec une taille de police raisonnable
-'            isFitting = False
-'
-'            ' Créer un Shape temporaire pour mesurer le texte
-'            Set tempShape = ws.Shapes.AddTextbox(msoTextOrientationHorizontal, 0, 0, maxWidth, maxHeight)
-'            With tempShape.TextFrame2.TextRange
-'                .Text = cellText
-'                .ParagraphFormat.Alignment = msoAlignCenter
-'                .ParagraphFormat.LineRuleBefore = msoFalse ' Désactiver les règles de ligne pour une meilleure mesure
-'            End With
-'
-'            ' Ajuster la taille de la police
-'            Do While Not isFitting And fontSize >= minFontSize
-'                tempShape.TextFrame2.TextRange.Font.Size = fontSize
-'                tempShape.TextFrame2.AutoSize = msoAutoSizeNone
-'                If tempShape.TextFrame2.TextRange.BoundWidth <= maxWidth And tempShape.TextFrame2.TextRange.BoundHeight <= maxHeight Then
-'                    isFitting = True
-'                Else
-'                    fontSize = fontSize - 1
-'                End If
-'            Loop
-'
-'            ' Appliquer la taille de police trouvée à la cellule
-'            cell.Font.Size = fontSize
-'            cell.WrapText = True ' Activer le retour à la ligne automatique
-'
-'            ' Supprimer le Shape temporaire
-'            tempShape.Delete
-'        End If
-'    Next cell
-'
-'    ' Réactiver les mises à jour de l'écran
-'    Application.ScreenUpdating = True
-'
-'    MsgBox "Ajustement du contenu des cellules terminé!"
-'End Sub
-'
-
-Sub SupprimerToutesLesFeuillesExceptSource()
-    Dim ws As Worksheet
-    Dim wsSource As Worksheet
-    Dim wsName As String
-    
-    Application.DisplayAlerts = False ' Désactiver les alertes pour éviter les confirmations de suppression
-    Application.ScreenUpdating = False ' Désactiver les mises à jour de l'écran pour accélérer l'exécution
-
-    ' Définir la feuille Source
-    On Error Resume Next
-    Set wsSource = ThisWorkbook.Sheets("Source")
-    On Error GoTo 0
-
-    ' Vérifier si la feuille Source existe
-    If wsSource Is Nothing Then
-        MsgBox "La feuille 'Source' n'existe pas dans ce classeur.", vbExclamation
-        Application.DisplayAlerts = True
-        Application.ScreenUpdating = True
-        Exit Sub
-    End If
-
-    ' Supprimer toutes les feuilles sauf la feuille Source
-    For Each ws In ThisWorkbook.Sheets
-        If ws.Name <> "Source" Then
-            ws.Delete
-        End If
-    Next ws
-
-    ' Réactiver les alertes et les mises à jour de l'écran
-    Application.DisplayAlerts = True
-    Application.ScreenUpdating = True
-    
-    Call ResetAndAddTitles
-
-    MsgBox "Les données ont été supprimées!", vbInformation
-End Sub
-
-Sub ResetAndAddTitles()
-    Dim ws As Worksheet
-    
-    ' Définir la feuille de calcul active
-    Set ws = ThisWorkbook.ActiveSheet
-    
-    ' Effacer les valeurs et les formats des cellules
-    ws.Cells.Clear
-    
-    ' Ajouter les titres aux colonnes
-    ws.Cells(1, 1).Value = "NUM ext"
-    ws.Cells(1, 2).Value = "VOIE"
-    ws.Cells(1, 3).Value = "VILLE"
-    ws.Cells(1, 4).Value = "OBSERVATIONS"
-    ws.Cells(1, 5).Value = "PRE"
-    ws.Cells(1, 6).Value = "TYPE PDI"
-    ws.Cells(1, 7).Value = "LARGEUR"
-    ws.Cells(1, 8).Value = "CASE MODULE"
-    
-    
-End Sub
 
 Sub ConfigurerMiseEnPage()
     Dim ws As Worksheet
@@ -354,10 +260,13 @@ Sub ConfigurerMiseEnPage()
             .HeaderMargin = Application.InchesToPoints(0)
             .FooterMargin = Application.InchesToPoints(0)
             .CenterFooter = "Page &P" ' Numéro de page au centre du pied de page
+            
+            ' Ajuster la mise à l'échelle pour limiter aux 16 colonnes (A à P)
+            .FitToPagesWide = 1
+            .FitToPagesTall = False
+            .Zoom = False
         End With
     Next ws
 
     Application.ScreenUpdating = True ' Réactiver les mises à jour de l'écran
-
 End Sub
-
