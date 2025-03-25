@@ -10,8 +10,8 @@ Sub TransposerDonneesSelectionnees()
     Dim maxCol As Long
     Dim currentGroup As Long
 
-    ' Définir la colonne maximale (P = 16)
-    maxCol = 16
+    ' Définir la colonne maximale (O = 15)
+    maxCol = 15
 
     ' Désactiver les mises à jour de l'écran et les calculs automatiques pour accélérer l'exécution
     Application.ScreenUpdating = False
@@ -114,8 +114,8 @@ Sub FusionnerCellulesMemeLigne()
     Dim startCol As Long
     Dim maxCol As Long
     
-    ' Définir la colonne maximale (P = 16)
-    maxCol = 16
+    ' Définir la colonne maximale (O = 15)
+    maxCol = 15
     
     Application.DisplayAlerts = False
 
@@ -212,8 +212,8 @@ Sub AjusterDimensions()
         End If
     Next i
 
-    ' Ajuster uniquement la largeur des 16 premières colonnes (A à P)
-    ws.Columns("A:P").ColumnWidth = 8.5
+    ' Ajuster uniquement la largeur des 15 premières colonnes (A à O)
+    ws.Columns("A:O").ColumnWidth = 8.5
     
     ' Réactiver les mises à jour de l'écran et les calculs automatiques
     Application.ScreenUpdating = True
@@ -226,7 +226,7 @@ Sub CentrerCellules()
     Dim usedRange As Range
     Dim maxCol As Long
     
-    maxCol = 16 ' Colonne P
+    maxCol = 15 ' Colonne O
 
     ' Définir la feuille de travail cible
     Set ws = ThisWorkbook.Sheets("Transposé")
@@ -261,7 +261,7 @@ Sub ConfigurerMiseEnPage()
             .FooterMargin = Application.InchesToPoints(0)
             .CenterFooter = "Page &P" ' Numéro de page au centre du pied de page
             
-            ' Ajuster la mise à l'échelle pour limiter aux 16 colonnes (A à P)
+            ' Ajuster la mise à l'échelle pour limiter aux 15 colonnes (A à O)
             .FitToPagesWide = 1
             .FitToPagesTall = False
             .Zoom = False
