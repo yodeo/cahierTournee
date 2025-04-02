@@ -8,9 +8,7 @@ Sub TransposerDonneesSelectionnees()
     Dim destRow As Long
     Dim startCol As Long
     Dim maxCol As Long
-    Dim currentGroup As Long
     Dim currentCaseModule As String ' Variable pour suivre le module actuel
-    Dim debutGroupeActuel As Long ' Variable pour suivre le début du groupe actuel
     
     ' Définir la colonne maximale (O = 15)
     maxCol = 15
@@ -45,56 +43,17 @@ Sub TransposerDonneesSelectionnees()
     ' Initialiser la colonne et la ligne de destination
     destCol = 2 ' On commence à la colonne B car A est réservée pour le CASE MODULE
     destRow = 1
-    startCol = 2
-    currentGroup = 0
-    currentCaseModule = "__INIT__" ' Valeur spéciale pour s'assurer que le premier changement est détecté
-    debutGroupeActuel = 1
+    currentCaseModule = ""
 
     ' Transposer les données
     For i = 1 To lastRow
-        ' Vérifier si la cellule dans la colonne H contient un changement de CASE MODULE
-        Dim newCaseModule As String
-        newCaseModule = wsSource.Cells(i, 8).Value
-        
-        ' Debug: afficher les valeurs de colonne H pour comprendre les données
-        ' Debug.Print "Ligne " & i & ": Colonne H = [" & newCaseModule & "], Module courant = [" & currentCaseModule & "]"
-        
-        ' On détecte un changement de case quand la valeur dans H est différente du module actuel
-        ' On traite aussi la première occurrence
-        If newCaseModule <> currentCaseModule Then
-            ' Si un groupe précédent existe, finaliser le CASE MODULE pour ce groupe
-            If currentCaseModule <> "" And debutGroupeActuel < destRow Then
-                ' Fusionner les cellules pour le CASE MODULE précédent
-                With wsDest.Range(wsDest.Cells(debutGroupeActuel, 1), wsDest.Cells(destRow - 1, 1))
-                    .Merge
-                    .Value = currentCaseModule
-                    .Font.Bold = True
-                    .Font.Size = 10
-                    .Orientation = 90 ' Texte vertical
-                    .VerticalAlignment = xlCenter
-                    .HorizontalAlignment = xlCenter
-                    .Interior.Color = RGB(230, 230, 230) ' Fond gris clair
-                    .Borders.LineStyle = xlContinuous
-                    .Borders.Weight = xlMedium
-                End With
-            End If
-            
-            currentGroup = currentGroup + 1
-            currentCaseModule = wsSource.Cells(i, 8).Value ' Enregistrer le nouveau module
-            debutGroupeActuel = destRow ' Mémoriser le début du nouveau groupe
-            
-            ' Vérifier si on est déjà au début d'une ligne
-            If destCol = 2 Then
-                ' On ne fait rien, on reste sur la ligne courante
-            Else
-                ' Si on n'est pas au début d'une ligne, passer à la ligne suivante
-                destCol = 2
-                destRow = destRow + 4
-                debutGroupeActuel = destRow ' Mise à jour du début du groupe
-            End If
+        ' Vérifier s'il y a un numéro de case dans la colonne H
+        If wsSource.Cells(i, 8).Value <> "" Then
+            ' Si oui, mettre à jour le numéro de case courant
+            currentCaseModule = wsSource.Cells(i, 8).Value
         End If
-
-        ' Vérifier si nous avons atteint la colonne maximale et si ce n'est pas un nouveau groupe
+        
+        ' Si nous avons atteint la colonne maximale
         If destCol > maxCol + 1 Then ' +1 car on a décalé avec l'insertion de la colonne A
             destCol = 2
             destRow = destRow + 4
@@ -111,6 +70,12 @@ Sub TransposerDonneesSelectionnees()
             wsDest.Cells(destRow + 2, destCol).Font.Color = .Font.Color ' Copie de la couleur de police
         End With
 
+        ' Écrire le numéro de case dans la colonne A
+        wsDest.Cells(destRow, 1).Value = currentCaseModule
+        wsDest.Cells(destRow, 1).Orientation = 90 ' Texte vertical
+        wsDest.Cells(destRow, 1).Font.Bold = True
+        wsDest.Cells(destRow, 1).Interior.Color = RGB(230, 230, 230) ' Fond gris clair
+        
         ' Ajouter des bordures aux cellules transposées
         With wsDest.Range(wsDest.Cells(destRow, destCol), wsDest.Cells(destRow + 2, destCol)).Borders
             .LineStyle = xlContinuous
@@ -123,20 +88,6 @@ Sub TransposerDonneesSelectionnees()
         destCol = destCol + 1
     Next i
     
-    ' Fusionner les cellules pour le dernier CASE MODULE
-    If currentCaseModule <> "" And debutGroupeActuel < destRow Then
-        With wsDest.Range(wsDest.Cells(debutGroupeActuel, 1), wsDest.Cells(destRow + 2, 1))
-            .Merge
-            .Value = currentCaseModule
-            .Font.Bold = True
-            .Font.Size = 10
-            .Orientation = 90 ' Texte vertical
-            .VerticalAlignment = xlCenter
-            .HorizontalAlignment = xlCenter
-            .Interior.Color = RGB(230, 230, 230) ' Fond gris clair
-        End With
-    End If
-    
     ' Supprimer les 8 premières lignes
     wsDest.Rows("1:8").Delete
 
@@ -147,7 +98,8 @@ Sub TransposerDonneesSelectionnees()
 
     Call FusionnerCellulesMemeLigne
     Call AjusterDimensions
-    Call CentrerCellules
+    Call CentrerCellules 
+    Call FusionnerCellulesCase
     Call ConfigurerMiseEnPage
     
     MsgBox "Création du cahier de tournée terminée!"
@@ -215,6 +167,63 @@ Sub FusionnerCellulesMemeLigne()
                 End If
             End If
         Next rowOffset
+    Next i
+    
+    Application.DisplayAlerts = True
+End Sub
+
+Sub FusionnerCellulesCase()
+    Dim ws As Worksheet
+    Dim lastRow As Long
+    Dim i As Long
+    Dim currentCase As String
+    Dim startRow As Long
+    
+    Application.DisplayAlerts = False
+    
+    ' Définir la feuille de travail cible
+    Set ws = ThisWorkbook.Sheets("Transposé")
+    
+    ' Trouver la dernière ligne des données
+    lastRow = ws.Cells(ws.Rows.Count, "A").End(xlUp).Row
+    
+    ' Initialiser
+    currentCase = ""
+    startRow = 1
+    
+    ' Parcourir toutes les lignes
+    For i = 1 To lastRow Step 1 ' On examine chaque ligne individuellement
+        ' Si on a changé de case ou si on est à la dernière ligne
+        If ws.Cells(i, 1).Value <> currentCase Or i = lastRow Then
+            ' Si on a déjà une case en cours, on la fusionne
+            If currentCase <> "" And startRow < i Then
+                ' Si on est à la dernière ligne et que la case est la même, inclure cette dernière ligne
+                Dim endRow As Long
+                If i = lastRow And ws.Cells(i, 1).Value = currentCase Then
+                    endRow = i
+                Else
+                    endRow = i - 1
+                End If
+                
+                ' Fusionner les cellules de la colonne A pour ce groupe de case
+                ws.Range(ws.Cells(startRow, 1), ws.Cells(endRow, 1)).Merge
+                
+                ' Centrer et formater
+                With ws.Cells(startRow, 1)
+                    .HorizontalAlignment = xlCenter
+                    .VerticalAlignment = xlCenter
+                    .Orientation = 90 ' Texte vertical
+                    .Font.Bold = True
+                    .Interior.Color = RGB(230, 230, 230) ' Fond gris clair
+                End With
+            End If
+            
+            ' Mettre à jour le numéro de case courant et la ligne de début
+            If i < lastRow Then ' Éviter de démarrer un nouveau groupe à la dernière ligne
+                currentCase = ws.Cells(i, 1).Value
+                startRow = i
+            End If
+        End If
     Next i
     
     Application.DisplayAlerts = True
@@ -291,7 +300,6 @@ Sub CentrerCellules()
         .WrapText = True
     End With
 End Sub
-
 
 
 Sub ConfigurerMiseEnPage()
