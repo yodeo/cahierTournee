@@ -43,7 +43,7 @@ Sub FusionnerCellulesCase()
         End If
         
         ' Si on est à la dernière ligne, sortir de la boucle
-        If i >= lastRow Then Exit While
+        If i >= lastRow Then Exit Sub
     Wend
     
     Application.DisplayAlerts = True
