@@ -133,8 +133,6 @@ Sub TransposerDonneesSelectionnees()
             .VerticalAlignment = xlCenter
             .HorizontalAlignment = xlCenter
             .Interior.Color = RGB(230, 230, 230) ' Fond gris clair
-            .Borders.LineStyle = xlContinuous
-            .Borders.Weight = xlMedium
         End With
     End If
     
