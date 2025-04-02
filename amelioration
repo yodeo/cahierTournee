@@ -47,10 +47,16 @@ Sub TransposerDonneesSelectionnees()
 
     ' Transposer les données
     For i = 1 To lastRow
-        ' Vérifier s'il y a un numéro de case dans la colonne H
-        If wsSource.Cells(i, 8).Value <> "" Then
+        ' Vérifier s'il y a un changement de case dans la colonne H
+        If wsSource.Cells(i, 8).Value <> "" And wsSource.Cells(i, 8).Value <> currentCaseModule Then
             ' Si oui, mettre à jour le numéro de case courant
             currentCaseModule = wsSource.Cells(i, 8).Value
+            
+            ' Passer à la ligne suivante (sauf si on est déjà au début d'une ligne)
+            If destCol > 2 Then
+                destCol = 2
+                destRow = destRow + 4
+            End If
         End If
         
         ' Si nous avons atteint la colonne maximale
