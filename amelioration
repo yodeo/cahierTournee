@@ -104,7 +104,7 @@ Sub TransposerDonneesSelectionnees()
 
     Call FusionnerCellulesMemeLigne
     Call AjusterDimensions
-    Call CentrerCellules 
+    Call CentrerCellules
     Call FusionnerCellulesCase
     Call ConfigurerMiseEnPage
     
