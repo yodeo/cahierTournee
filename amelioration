@@ -27,11 +27,11 @@ Sub FusionnerCellulesCase()
                 nextNonEmptyRow = nextNonEmptyRow + 1
             Wend
             
-            ' Calculer la fin de la fusion (2 lignes avant la prochaine cellule non vide)
+            ' Calculer la fin de la fusion (laisser précisément 1 ligne libre avant la prochaine cellule non vide)
             Dim endRow As Long
             If nextNonEmptyRow <= lastRow Then
-                ' Si on a trouvé une prochaine cellule non vide, on fusionne jusqu'à 2 lignes avant
-                endRow = nextNonEmptyRow - 2
+                ' Si on trouve une prochaine cellule non vide, on laisse 1 ligne libre avant
+                endRow = nextNonEmptyRow - 2  ' Par exemple: Si prochaine cellule est A5, endRow = A5-2 = A3
             Else
                 ' Si on atteint la fin du tableau sans trouver de cellule non vide
                 endRow = lastRow
@@ -42,8 +42,11 @@ Sub FusionnerCellulesCase()
                 endRow = startRow
             End If
             
-            ' Fusionner les cellules de la colonne A pour ce bloc
+            ' Fusion des cellules seulement si nécessaire
             If endRow > startRow Then
+                ' Debug: Afficher les valeurs pour vérification
+                'MsgBox "Fusion de A" & startRow & " à A" & endRow & ", prochaine cellule: A" & nextNonEmptyRow
+                
                 ws.Range(ws.Cells(startRow, 1), ws.Cells(endRow, 1)).Merge
                 
                 ' Centrer et formater
@@ -56,7 +59,7 @@ Sub FusionnerCellulesCase()
                 End With
             End If
             
-            ' Passer à la prochaine ligne après la fusion
+            ' Passer à la prochaine ligne non vide pour continuer le traitement
             i = nextNonEmptyRow
         Else
             ' Si la cellule est vide, passer à la ligne suivante
