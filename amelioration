@@ -3,6 +3,7 @@ Sub FusionnerCellulesCase()
     Dim lastRow As Long
     Dim i As Long
     Dim startRow As Long
+    Dim nextNonEmptyRow As Long
     
     Application.DisplayAlerts = False
     
@@ -21,14 +22,29 @@ Sub FusionnerCellulesCase()
             startRow = i
             
             ' Chercher la prochaine ligne non vide en colonne A
-            i = i + 1
-            While i <= lastRow And IsEmpty(ws.Cells(i, 1))
-                i = i + 1
+            nextNonEmptyRow = i + 1
+            While nextNonEmptyRow <= lastRow And IsEmpty(ws.Cells(nextNonEmptyRow, 1))
+                nextNonEmptyRow = nextNonEmptyRow + 1
             Wend
             
+            ' Calculer la fin de la fusion (2 lignes avant la prochaine cellule non vide)
+            Dim endRow As Long
+            If nextNonEmptyRow <= lastRow Then
+                ' Si on a trouvé une prochaine cellule non vide, on fusionne jusqu'à 2 lignes avant
+                endRow = nextNonEmptyRow - 2
+            Else
+                ' Si on atteint la fin du tableau sans trouver de cellule non vide
+                endRow = lastRow
+            End If
+            
+            ' S'assurer que endRow n'est pas inférieur à startRow
+            If endRow < startRow Then
+                endRow = startRow
+            End If
+            
             ' Fusionner les cellules de la colonne A pour ce bloc
-            If i - 1 > startRow Then
-                ws.Range(ws.Cells(startRow, 1), ws.Cells(i - 1, 1)).Merge
+            If endRow > startRow Then
+                ws.Range(ws.Cells(startRow, 1), ws.Cells(endRow, 1)).Merge
                 
                 ' Centrer et formater
                 With ws.Cells(startRow, 1)
@@ -39,6 +55,9 @@ Sub FusionnerCellulesCase()
                     .Interior.Color = RGB(230, 230, 230) ' Fond gris clair
                 End With
             End If
+            
+            ' Passer à la prochaine ligne après la fusion
+            i = nextNonEmptyRow
         Else
             ' Si la cellule est vide, passer à la ligne suivante
             i = i + 1
