@@ -1,9 +1,9 @@
 Sub FusionnerCellulesCase()
     Dim ws As Worksheet
     Dim lastRow As Long
-    Dim i As Long
+    Dim i As Long, j As Long
     Dim startRow As Long
-    Dim nextNonEmptyRow As Long
+    Dim currentValue As String
     
     Application.DisplayAlerts = False
     
@@ -20,33 +20,27 @@ Sub FusionnerCellulesCase()
     While i <= lastRow
         If Not IsEmpty(ws.Cells(i, 1)) Then
             startRow = i
+            currentValue = ws.Cells(i, 1).Value
             
-            ' Chercher la prochaine ligne non vide en colonne A
-            nextNonEmptyRow = i + 1
-            While nextNonEmptyRow <= lastRow And IsEmpty(ws.Cells(nextNonEmptyRow, 1))
-                nextNonEmptyRow = nextNonEmptyRow + 1
+            ' Chercher jusqu'où cette valeur se répète
+            j = i + 1
+            While j <= lastRow And (ws.Cells(j, 1).Value = currentValue Or IsEmpty(ws.Cells(j, 1)))
+                j = j + 1
             Wend
             
-            ' Calculer la fin de la fusion (laisser précisément 1 ligne libre avant la prochaine cellule non vide)
+            ' Décider où s'arrête la fusion
             Dim endRow As Long
-            If nextNonEmptyRow <= lastRow Then
-                ' Si on trouve une prochaine cellule non vide, on laisse 1 ligne libre avant
-                endRow = nextNonEmptyRow - 2  ' Par exemple: Si prochaine cellule est A5, endRow = A5-2 = A3
+            If j <= lastRow And ws.Cells(j, 1).Value <> currentValue Then
+                ' Si on trouve une valeur différente, on fusionne jusqu'à 2 lignes avant
+                endRow = j - 2
+                If endRow < startRow Then endRow = startRow
             Else
-                ' Si on atteint la fin du tableau sans trouver de cellule non vide
-                endRow = lastRow
+                ' Si on atteint la fin du tableau ou si toutes les valeurs suivantes sont identiques
+                endRow = j - 1
             End If
             
-            ' S'assurer que endRow n'est pas inférieur à startRow
-            If endRow < startRow Then
-                endRow = startRow
-            End If
-            
-            ' Fusion des cellules seulement si nécessaire
+            ' Fusionner les cellules de la colonne A pour ce bloc
             If endRow > startRow Then
-                ' Debug: Afficher les valeurs pour vérification
-                'MsgBox "Fusion de A" & startRow & " à A" & endRow & ", prochaine cellule: A" & nextNonEmptyRow
-                
                 ws.Range(ws.Cells(startRow, 1), ws.Cells(endRow, 1)).Merge
                 
                 ' Centrer et formater
@@ -59,8 +53,8 @@ Sub FusionnerCellulesCase()
                 End With
             End If
             
-            ' Passer à la prochaine ligne non vide pour continuer le traitement
-            i = nextNonEmptyRow
+            ' Passer à la ligne suivante après la dernière cellule traitée
+            i = j
         Else
             ' Si la cellule est vide, passer à la ligne suivante
             i = i + 1
