@@ -10,6 +10,7 @@ Sub TransposerDonneesSelectionnees()
     Dim maxCol As Long
     Dim currentGroup As Long
     Dim currentCaseModule As String ' Variable pour suivre le module actuel
+    Dim debutGroupeActuel As Long ' Variable pour suivre le début du groupe actuel
     
     ' Définir la colonne maximale (O = 15)
     maxCol = 15
@@ -34,51 +35,60 @@ Sub TransposerDonneesSelectionnees()
     Set wsDest = ThisWorkbook.Sheets.Add(After:=ThisWorkbook.Sheets(ThisWorkbook.Sheets.Count))
     wsDest.Name = "Transposé"
 
+    ' Ajouter une colonne pour le CASE MODULE
+    wsDest.Columns("A:A").Insert Shift:=xlToRight
+    wsDest.Columns("A:A").ColumnWidth = 3
+
     ' Trouver la dernière ligne des données
     lastRow = wsSource.Cells(wsSource.Rows.Count, "A").End(xlUp).Row
 
     ' Initialiser la colonne et la ligne de destination
-    destCol = 1
+    destCol = 2 ' On commence à la colonne B car A est réservée pour le CASE MODULE
     destRow = 1
-    startCol = 1
+    startCol = 2
     currentGroup = 0
-    currentCaseModule = "" ' Initialiser le module courant
+    currentCaseModule = ""
+    debutGroupeActuel = 1
 
     ' Transposer les données
     For i = 1 To lastRow
         ' Vérifier si la cellule dans la colonne H contient une lettre
         If Not IsNumeric(wsSource.Cells(i, 8).Value) And wsSource.Cells(i, 8).Value <> "" Then
-            currentGroup = currentGroup + 1
-            currentCaseModule = wsSource.Cells(i, 8).Value ' Enregistrer le nouveau module
-            
-            ' Vérifier si on est déjà au début d'une ligne
-            If destCol = 1 Then
-                ' Si on est déjà au début d'une ligne, ajouter 4 lignes
-                destRow = destRow + 4
-            Else
-                ' Si on n'est pas au début d'une ligne, passer à la ligne suivante
-                destCol = 1
-                destRow = destRow + 4
+            ' Si un groupe précédent existe, finaliser le CASE MODULE pour ce groupe
+            If currentCaseModule <> "" And debutGroupeActuel < destRow Then
+                ' Fusionner les cellules pour le CASE MODULE précédent
+                With wsDest.Range(wsDest.Cells(debutGroupeActuel, 1), wsDest.Cells(destRow - 1, 1))
+                    .Merge
+                    .Value = currentCaseModule
+                    .Font.Bold = True
+                    .Font.Size = 10
+                    .Orientation = 90 ' Texte vertical
+                    .VerticalAlignment = xlCenter
+                    .HorizontalAlignment = xlCenter
+                    .Interior.Color = RGB(230, 230, 230) ' Fond gris clair
+                    .Borders.LineStyle = xlContinuous
+                    .Borders.Weight = xlMedium
+                End With
             End If
             
-            ' Ajouter un en-tête pour le CASE MODULE
-            With wsDest.Cells(destRow - 1, 1)
-                .Value = "CASE MODULE: " & currentCaseModule
-                .Font.Bold = True
-                .Font.Size = 12
-                .HorizontalAlignment = xlCenter
-            End With
+            currentGroup = currentGroup + 1
+            currentCaseModule = wsSource.Cells(i, 8).Value ' Enregistrer le nouveau module
+            debutGroupeActuel = destRow ' Mémoriser le début du nouveau groupe
             
-            ' Fusionner les cellules pour créer un en-tête sur toute la largeur
-            wsDest.Range(wsDest.Cells(destRow - 1, 1), wsDest.Cells(destRow - 1, maxCol)).Merge
-            
-            ' Ajouter un fond gris clair
-            wsDest.Cells(destRow - 1, 1).Interior.Color = RGB(230, 230, 230)
+            ' Vérifier si on est déjà au début d'une ligne
+            If destCol = 2 Then
+                ' On ne fait rien, on reste sur la ligne courante
+            Else
+                ' Si on n'est pas au début d'une ligne, passer à la ligne suivante
+                destCol = 2
+                destRow = destRow + 4
+                debutGroupeActuel = destRow ' Mise à jour du début du groupe
+            End If
         End If
 
         ' Vérifier si nous avons atteint la colonne maximale et si ce n'est pas un nouveau groupe
-        If destCol > maxCol Then
-            destCol = 1
+        If destCol > maxCol + 1 Then ' +1 car on a décalé avec l'insertion de la colonne A
+            destCol = 2
             destRow = destRow + 4
         End If
 
@@ -105,6 +115,22 @@ Sub TransposerDonneesSelectionnees()
         destCol = destCol + 1
     Next i
     
+    ' Fusionner les cellules pour le dernier CASE MODULE
+    If currentCaseModule <> "" And debutGroupeActuel < destRow Then
+        With wsDest.Range(wsDest.Cells(debutGroupeActuel, 1), wsDest.Cells(destRow + 2, 1))
+            .Merge
+            .Value = currentCaseModule
+            .Font.Bold = True
+            .Font.Size = 10
+            .Orientation = 90 ' Texte vertical
+            .VerticalAlignment = xlCenter
+            .HorizontalAlignment = xlCenter
+            .Interior.Color = RGB(230, 230, 230) ' Fond gris clair
+            .Borders.LineStyle = xlContinuous
+            .Borders.Weight = xlMedium
+        End With
+    End If
+    
     ' Supprimer les 8 premières lignes
     wsDest.Rows("1:8").Delete
 
@@ -113,7 +139,6 @@ Sub TransposerDonneesSelectionnees()
     Application.Calculation = xlCalculationAutomatic
     Application.DisplayAlerts = True
 
-    
     Call FusionnerCellulesMemeLigne
     Call AjusterDimensions
     Call CentrerCellules
@@ -134,7 +159,7 @@ Sub FusionnerCellulesMemeLigne()
     Dim maxCol As Long
     
     ' Définir la colonne maximale (O = 15)
-    maxCol = 15
+    maxCol = 16 ' Ajusté car on a maintenant une colonne de plus
     
     Application.DisplayAlerts = False
 
@@ -151,10 +176,10 @@ Sub FusionnerCellulesMemeLigne()
             currentRow = i + rowOffset
             
             If currentRow <= lastRow Then
-                startCol = 1 ' Initialiser startCol à la première colonne de la ligne
+                startCol = 2 ' Commencer à la colonne B car A est réservée pour le CASE MODULE
     
                 ' Parcourir les colonnes de la ligne, limité à maxCol
-                For j = 2 To maxCol
+                For j = 3 To maxCol ' Ajusté pour commencer à C
                     ' Vérifier si la cellule actuelle et la cellule de départ ne sont pas vides
                     If Not IsEmpty(ws.Cells(currentRow, startCol)) And Not IsEmpty(ws.Cells(currentRow, j)) Then
                         ' Vérifier si la valeur de la cellule actuelle est égale à la valeur de la cellule de départ
@@ -205,6 +230,9 @@ Sub AjusterDimensions()
     ' Trouver la dernière ligne utilisée
     lastRow = ws.Cells(ws.Rows.Count, "A").End(xlUp).Row
 
+    ' Ajuster la colonne CASE MODULE
+    ws.Columns("A:A").ColumnWidth = 3
+    
     ' Ajuster la hauteur et les propriétés des lignes jusqu'à la dernière ligne utilisée
     For i = 1 To lastRow Step 4
         With ws.Rows(i)
@@ -225,20 +253,12 @@ Sub AjusterDimensions()
             End With
         End If
         If i + 3 <= lastRow Then
-            ' Vérifier si la ligne contient un en-tête de CASE MODULE
-            If InStr(ws.Cells(i + 3, 1).Value, "CASE MODULE:") > 0 Then
-                ' Si oui, augmenter la hauteur et mettre en gras
-                ws.Rows(i + 3).RowHeight = 20
-                ws.Rows(i + 3).Font.Bold = True
-            Else
-                ' Sinon, utiliser la hauteur standard
-                ws.Rows(i + 3).RowHeight = 10
-            End If
+            ws.Rows(i + 3).RowHeight = 10
         End If
     Next i
 
-    ' Ajuster uniquement la largeur des 15 premières colonnes (A à O)
-    ws.Columns("A:O").ColumnWidth = 8.5
+    ' Ajuster uniquement la largeur des colonnes B à P (anciennement A à O)
+    ws.Columns("B:P").ColumnWidth = 8.5
     
     ' Réactiver les mises à jour de l'écran et les calculs automatiques
     Application.ScreenUpdating = True
@@ -251,13 +271,13 @@ Sub CentrerCellules()
     Dim usedRange As Range
     Dim maxCol As Long
     
-    maxCol = 15 ' Colonne O
+    maxCol = 16 ' Ajusté car on a maintenant une colonne de plus
 
     ' Définir la feuille de travail cible
     Set ws = ThisWorkbook.Sheets("Transposé")
 
-    ' Définir la plage utilisée dans la feuille de travail (limitée à la colonne P)
-    Set usedRange = ws.Range(ws.Cells(1, 1), ws.Cells(ws.Cells(ws.Rows.Count, "A").End(xlUp).Row, maxCol))
+    ' Définir la plage utilisée dans la feuille de travail (de B à P)
+    Set usedRange = ws.Range(ws.Cells(1, 2), ws.Cells(ws.Cells(ws.Rows.Count, "B").End(xlUp).Row, maxCol))
 
     ' Centrer horizontalement et verticalement les cellules de la plage utilisée
     With usedRange
@@ -272,11 +292,12 @@ Sub EncadrerGroupesCase()
     Dim ws As Worksheet
     Dim lastRow As Long
     Dim i As Long
+    Dim j As Long
     Dim debutGroupe As Long
     Dim finGroupe As Long
     Dim maxCol As Long
     
-    maxCol = 15 ' Colonne O
+    maxCol = 16 ' Ajusté car on a maintenant une colonne de plus
     
     ' Définir la feuille de travail cible
     Set ws = ThisWorkbook.Sheets("Transposé")
@@ -284,48 +305,59 @@ Sub EncadrerGroupesCase()
     ' Trouver la dernière ligne utilisée
     lastRow = ws.Cells(ws.Rows.Count, "A").End(xlUp).Row
     
-    ' Parcourir les lignes pour trouver les en-têtes de CASE MODULE
+    ' On n'a plus besoin de rechercher les en-têtes, car le CASE MODULE est maintenant
+    ' dans la colonne A. On va plutôt détecter les changements dans les cellules fusionnées.
+    
     i = 1
     While i <= lastRow
-        ' Si la ligne contient un en-tête de CASE MODULE
-        If InStr(ws.Cells(i, 1).Value, "CASE MODULE:") > 0 Then
-            debutGroupe = i + 1 ' Le début du groupe est la ligne après l'en-tête
-            
-            ' Chercher la fin du groupe (soit le prochain en-tête, soit la fin des données)
-            finGroupe = i + 1
-            While finGroupe < lastRow And InStr(ws.Cells(finGroupe + 1, 1).Value, "CASE MODULE:") = 0
-                finGroupe = finGroupe + 1
-            Wend
-            
-            ' Ajouter une bordure épaisse autour du groupe
-            With ws.Range(ws.Cells(debutGroupe, 1), ws.Cells(finGroupe, maxCol)).Borders(xlEdgeLeft)
-                .LineStyle = xlContinuous
-                .Weight = xlThick
-                .ColorIndex = 1
-            End With
-            
-            With ws.Range(ws.Cells(debutGroupe, 1), ws.Cells(finGroupe, maxCol)).Borders(xlEdgeRight)
-                .LineStyle = xlContinuous
-                .Weight = xlThick
-                .ColorIndex = 1
-            End With
-            
-            With ws.Range(ws.Cells(debutGroupe, 1), ws.Cells(finGroupe, maxCol)).Borders(xlEdgeTop)
-                .LineStyle = xlContinuous
-                .Weight = xlThick
-                .ColorIndex = 1
-            End With
-            
-            With ws.Range(ws.Cells(debutGroupe, 1), ws.Cells(finGroupe, maxCol)).Borders(xlEdgeBottom)
-                .LineStyle = xlContinuous
-                .Weight = xlThick
-                .ColorIndex = 1
-            End With
-            
-            i = finGroupe + 1 ' Passer à la ligne après ce groupe
-        Else
-            i = i + 1 ' Passer à la ligne suivante
-        End If
+        debutGroupe = i
+        
+        ' Trouver la valeur du module actuel
+        Dim moduleActuel As String
+        moduleActuel = ws.Cells(i, 1).Value
+        
+        ' Trouver la fin du groupe (le dernier i où le CASE MODULE est le même)
+        finGroupe = i
+        Do While finGroupe < lastRow
+            ' Vérifier si la cellule suivante est fusionnée avec celle-ci
+            If ws.Cells(finGroupe + 1, 1).MergeCells Then
+                ' Si c'est la même zone fusionnée, avancer
+                If ws.Cells(finGroupe + 1, 1).MergeArea.Address = ws.Cells(finGroupe, 1).MergeArea.Address Then
+                    finGroupe = finGroupe + 1
+                Else
+                    Exit Do
+                End If
+            Else
+                Exit Do
+            End If
+        Loop
+        
+        ' Ajouter une bordure épaisse autour du groupe
+        With ws.Range(ws.Cells(debutGroupe, 2), ws.Cells(finGroupe, maxCol)).Borders(xlEdgeLeft)
+            .LineStyle = xlContinuous
+            .Weight = xlThick
+            .ColorIndex = 1
+        End With
+        
+        With ws.Range(ws.Cells(debutGroupe, 2), ws.Cells(finGroupe, maxCol)).Borders(xlEdgeRight)
+            .LineStyle = xlContinuous
+            .Weight = xlThick
+            .ColorIndex = 1
+        End With
+        
+        With ws.Range(ws.Cells(debutGroupe, 2), ws.Cells(finGroupe, maxCol)).Borders(xlEdgeTop)
+            .LineStyle = xlContinuous
+            .Weight = xlThick
+            .ColorIndex = 1
+        End With
+        
+        With ws.Range(ws.Cells(debutGroupe, 2), ws.Cells(finGroupe, maxCol)).Borders(xlEdgeBottom)
+            .LineStyle = xlContinuous
+            .Weight = xlThick
+            .ColorIndex = 1
+        End With
+        
+        i = finGroupe + 1 ' Passer à la ligne après ce groupe
     Wend
 End Sub
 
@@ -348,7 +380,7 @@ Sub ConfigurerMiseEnPage()
             .FooterMargin = Application.InchesToPoints(0)
             .CenterFooter = "Page &P" ' Numéro de page au centre du pied de page
             
-            ' Ajuster la mise à l'échelle pour limiter aux 15 colonnes (A à O)
+            ' Ajuster la mise à l'échelle pour limiter aux 16 colonnes (A à P)
             .FitToPagesWide = 1
             .FitToPagesTall = False
             .Zoom = False
