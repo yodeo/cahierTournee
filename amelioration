@@ -3,7 +3,6 @@ Sub FusionnerCellulesCase()
     Dim lastRow As Long
     Dim i As Long
     Dim startRow As Long
-    Dim nextNonEmptyRow As Long
     
     Application.DisplayAlerts = False
     
@@ -13,27 +12,23 @@ Sub FusionnerCellulesCase()
     ' Trouver la dernière ligne des données
     lastRow = ws.Cells(ws.Rows.Count, "A").End(xlUp).Row
     
-    ' Parcourir toutes les lignes
+    ' Initialiser
     i = 1
     
-    Do While i <= lastRow
-        ' Ignorer les cellules vides dans la colonne A
-        If Not IsEmpty(ws.Cells(i, 1).Value) And ws.Cells(i, 1).Value <> "" Then
+    ' Parcourir toutes les lignes
+    While i <= lastRow
+        If Not IsEmpty(ws.Cells(i, 1)) Then
             startRow = i
             
-            ' Trouver la prochaine ligne non vide dans la colonne A
-            nextNonEmptyRow = i + 1
-            Do While nextNonEmptyRow <= lastRow
-                If Not IsEmpty(ws.Cells(nextNonEmptyRow, 1).Value) And ws.Cells(nextNonEmptyRow, 1).Value <> "" Then
-                    Exit Do
-                End If
-                nextNonEmptyRow = nextNonEmptyRow + 1
-            Loop
+            ' Chercher la prochaine ligne non vide en colonne A
+            i = i + 1
+            While i <= lastRow And IsEmpty(ws.Cells(i, 1))
+                i = i + 1
+            Wend
             
-            ' Si nous avons trouvé des lignes vides à fusionner
-            If nextNonEmptyRow > startRow + 1 Then
-                ' Fusionner de startRow jusqu'à la ligne avant nextNonEmptyRow
-                ws.Range(ws.Cells(startRow, 1), ws.Cells(nextNonEmptyRow - 1, 1)).Merge
+            ' Fusionner les cellules de la colonne A pour ce bloc
+            If i - 1 > startRow Then
+                ws.Range(ws.Cells(startRow, 1), ws.Cells(i - 1, 1)).Merge
                 
                 ' Centrer et formater
                 With ws.Cells(startRow, 1)
@@ -44,14 +39,11 @@ Sub FusionnerCellulesCase()
                     .Interior.Color = RGB(230, 230, 230) ' Fond gris clair
                 End With
             End If
-            
-            ' Avancer à la prochaine cellule non vide
-            i = nextNonEmptyRow
         Else
-            ' Si la cellule courante est vide, passer à la suivante
+            ' Si la cellule est vide, passer à la ligne suivante
             i = i + 1
         End If
-    Loop
+    Wend
     
     Application.DisplayAlerts = True
 End Sub
