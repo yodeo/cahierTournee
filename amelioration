@@ -47,20 +47,21 @@ Sub TransposerDonneesSelectionnees()
     destRow = 1
     startCol = 2
     currentGroup = 0
-    currentCaseModule = ""
+    currentCaseModule = "__INIT__" ' Valeur spéciale pour s'assurer que le premier changement est détecté
     debutGroupeActuel = 1
 
     ' Transposer les données
     For i = 1 To lastRow
         ' Vérifier si la cellule dans la colonne H contient un changement de CASE MODULE
-        ' Le CASE MODULE se trouve dans la colonne H (8)
         Dim newCaseModule As String
         newCaseModule = wsSource.Cells(i, 8).Value
         
-        ' Définir un changement de CASE MODULE si:
-        ' - La valeur est différente du module courant, et
-        ' - La valeur n'est pas vide
-        If newCaseModule <> "" And newCaseModule <> currentCaseModule Then
+        ' Debug: afficher les valeurs de colonne H pour comprendre les données
+        ' Debug.Print "Ligne " & i & ": Colonne H = [" & newCaseModule & "], Module courant = [" & currentCaseModule & "]"
+        
+        ' On détecte un changement de case quand la valeur dans H est différente du module actuel
+        ' On traite aussi la première occurrence
+        If newCaseModule <> currentCaseModule Then
             ' Si un groupe précédent existe, finaliser le CASE MODULE pour ce groupe
             If currentCaseModule <> "" And debutGroupeActuel < destRow Then
                 ' Fusionner les cellules pour le CASE MODULE précédent
