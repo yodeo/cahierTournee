@@ -117,6 +117,7 @@ Sub TransposerDonneesSelectionnees()
     Call FusionnerCellulesMemeLigne
     Call AjusterDimensions
     Call CentrerCellules
+    Call EncadrerGroupesCase
     Call ConfigurerMiseEnPage
     
     MsgBox "Création du cahier de tournée terminée!"
@@ -264,6 +265,68 @@ Sub CentrerCellules()
         .VerticalAlignment = xlCenter
         .WrapText = True
     End With
+End Sub
+
+
+Sub EncadrerGroupesCase()
+    Dim ws As Worksheet
+    Dim lastRow As Long
+    Dim i As Long
+    Dim debutGroupe As Long
+    Dim finGroupe As Long
+    Dim maxCol As Long
+    
+    maxCol = 15 ' Colonne O
+    
+    ' Définir la feuille de travail cible
+    Set ws = ThisWorkbook.Sheets("Transposé")
+    
+    ' Trouver la dernière ligne utilisée
+    lastRow = ws.Cells(ws.Rows.Count, "A").End(xlUp).Row
+    
+    ' Parcourir les lignes pour trouver les en-têtes de CASE MODULE
+    i = 1
+    While i <= lastRow
+        ' Si la ligne contient un en-tête de CASE MODULE
+        If InStr(ws.Cells(i, 1).Value, "CASE MODULE:") > 0 Then
+            debutGroupe = i + 1 ' Le début du groupe est la ligne après l'en-tête
+            
+            ' Chercher la fin du groupe (soit le prochain en-tête, soit la fin des données)
+            finGroupe = i + 1
+            While finGroupe < lastRow And InStr(ws.Cells(finGroupe + 1, 1).Value, "CASE MODULE:") = 0
+                finGroupe = finGroupe + 1
+            Wend
+            
+            ' Ajouter une bordure épaisse autour du groupe
+            With ws.Range(ws.Cells(debutGroupe, 1), ws.Cells(finGroupe, maxCol)).Borders(xlEdgeLeft)
+                .LineStyle = xlContinuous
+                .Weight = xlThick
+                .ColorIndex = 1
+            End With
+            
+            With ws.Range(ws.Cells(debutGroupe, 1), ws.Cells(finGroupe, maxCol)).Borders(xlEdgeRight)
+                .LineStyle = xlContinuous
+                .Weight = xlThick
+                .ColorIndex = 1
+            End With
+            
+            With ws.Range(ws.Cells(debutGroupe, 1), ws.Cells(finGroupe, maxCol)).Borders(xlEdgeTop)
+                .LineStyle = xlContinuous
+                .Weight = xlThick
+                .ColorIndex = 1
+            End With
+            
+            With ws.Range(ws.Cells(debutGroupe, 1), ws.Cells(finGroupe, maxCol)).Borders(xlEdgeBottom)
+                .LineStyle = xlContinuous
+                .Weight = xlThick
+                .ColorIndex = 1
+            End With
+            
+            i = finGroupe + 1 ' Passer à la ligne après ce groupe
+        Else
+            i = i + 1 ' Passer à la ligne suivante
+        End If
+    Wend
 End Sub
 
 
