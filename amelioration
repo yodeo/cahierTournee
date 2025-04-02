@@ -9,7 +9,8 @@ Sub TransposerDonneesSelectionnees()
     Dim startCol As Long
     Dim maxCol As Long
     Dim currentGroup As Long
-
+    Dim currentCaseModule As String ' Variable pour suivre le module actuel
+    
     ' Définir la colonne maximale (O = 15)
     maxCol = 15
 
@@ -41,12 +42,15 @@ Sub TransposerDonneesSelectionnees()
     destRow = 1
     startCol = 1
     currentGroup = 0
+    currentCaseModule = "" ' Initialiser le module courant
 
     ' Transposer les données
     For i = 1 To lastRow
         ' Vérifier si la cellule dans la colonne H contient une lettre
         If Not IsNumeric(wsSource.Cells(i, 8).Value) And wsSource.Cells(i, 8).Value <> "" Then
             currentGroup = currentGroup + 1
+            currentCaseModule = wsSource.Cells(i, 8).Value ' Enregistrer le nouveau module
+            
             ' Vérifier si on est déjà au début d'une ligne
             If destCol = 1 Then
                 ' Si on est déjà au début d'une ligne, ajouter 4 lignes
@@ -56,6 +60,20 @@ Sub TransposerDonneesSelectionnees()
                 destCol = 1
                 destRow = destRow + 4
             End If
+            
+            ' Ajouter un en-tête pour le CASE MODULE
+            With wsDest.Cells(destRow - 1, 1)
+                .Value = "CASE MODULE: " & currentCaseModule
+                .Font.Bold = True
+                .Font.Size = 12
+                .HorizontalAlignment = xlCenter
+            End With
+            
+            ' Fusionner les cellules pour créer un en-tête sur toute la largeur
+            wsDest.Range(wsDest.Cells(destRow - 1, 1), wsDest.Cells(destRow - 1, maxCol)).Merge
+            
+            ' Ajouter un fond gris clair
+            wsDest.Cells(destRow - 1, 1).Interior.Color = RGB(230, 230, 230)
         End If
 
         ' Vérifier si nous avons atteint la colonne maximale et si ce n'est pas un nouveau groupe
@@ -206,9 +224,15 @@ Sub AjusterDimensions()
             End With
         End If
         If i + 3 <= lastRow Then
-            With ws.Rows(i + 3)
-                .RowHeight = 10
-            End With
+            ' Vérifier si la ligne contient un en-tête de CASE MODULE
+            If InStr(ws.Cells(i + 3, 1).Value, "CASE MODULE:") > 0 Then
+                ' Si oui, augmenter la hauteur et mettre en gras
+                ws.Rows(i + 3).RowHeight = 20
+                ws.Rows(i + 3).Font.Bold = True
+            Else
+                ' Sinon, utiliser la hauteur standard
+                ws.Rows(i + 3).RowHeight = 10
+            End If
         End If
     Next i
 
