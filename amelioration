@@ -52,8 +52,15 @@ Sub TransposerDonneesSelectionnees()
 
     ' Transposer les données
     For i = 1 To lastRow
-        ' Vérifier si la cellule dans la colonne H contient une lettre
-        If Not IsNumeric(wsSource.Cells(i, 8).Value) And wsSource.Cells(i, 8).Value <> "" Then
+        ' Vérifier si la cellule dans la colonne H contient un changement de CASE MODULE
+        ' Le CASE MODULE se trouve dans la colonne H (8)
+        Dim newCaseModule As String
+        newCaseModule = wsSource.Cells(i, 8).Value
+        
+        ' Définir un changement de CASE MODULE si:
+        ' - La valeur est différente du module courant, et
+        ' - La valeur n'est pas vide
+        If newCaseModule <> "" And newCaseModule <> currentCaseModule Then
             ' Si un groupe précédent existe, finaliser le CASE MODULE pour ce groupe
             If currentCaseModule <> "" And debutGroupeActuel < destRow Then
                 ' Fusionner les cellules pour le CASE MODULE précédent
@@ -142,7 +149,6 @@ Sub TransposerDonneesSelectionnees()
     Call FusionnerCellulesMemeLigne
     Call AjusterDimensions
     Call CentrerCellules
-    Call EncadrerGroupesCase
     Call ConfigurerMiseEnPage
     
     MsgBox "Création du cahier de tournée terminée!"
@@ -287,79 +293,6 @@ Sub CentrerCellules()
     End With
 End Sub
 
-
-Sub EncadrerGroupesCase()
-    Dim ws As Worksheet
-    Dim lastRow As Long
-    Dim i As Long
-    Dim j As Long
-    Dim debutGroupe As Long
-    Dim finGroupe As Long
-    Dim maxCol As Long
-    
-    maxCol = 16 ' Ajusté car on a maintenant une colonne de plus
-    
-    ' Définir la feuille de travail cible
-    Set ws = ThisWorkbook.Sheets("Transposé")
-    
-    ' Trouver la dernière ligne utilisée
-    lastRow = ws.Cells(ws.Rows.Count, "A").End(xlUp).Row
-    
-    ' On n'a plus besoin de rechercher les en-têtes, car le CASE MODULE est maintenant
-    ' dans la colonne A. On va plutôt détecter les changements dans les cellules fusionnées.
-    
-    i = 1
-    While i <= lastRow
-        debutGroupe = i
-        
-        ' Trouver la valeur du module actuel
-        Dim moduleActuel As String
-        moduleActuel = ws.Cells(i, 1).Value
-        
-        ' Trouver la fin du groupe (le dernier i où le CASE MODULE est le même)
-        finGroupe = i
-        Do While finGroupe < lastRow
-            ' Vérifier si la cellule suivante est fusionnée avec celle-ci
-            If ws.Cells(finGroupe + 1, 1).MergeCells Then
-                ' Si c'est la même zone fusionnée, avancer
-                If ws.Cells(finGroupe + 1, 1).MergeArea.Address = ws.Cells(finGroupe, 1).MergeArea.Address Then
-                    finGroupe = finGroupe + 1
-                Else
-                    Exit Do
-                End If
-            Else
-                Exit Do
-            End If
-        Loop
-        
-        ' Ajouter une bordure épaisse autour du groupe
-        With ws.Range(ws.Cells(debutGroupe, 2), ws.Cells(finGroupe, maxCol)).Borders(xlEdgeLeft)
-            .LineStyle = xlContinuous
-            .Weight = xlThick
-            .ColorIndex = 1
-        End With
-        
-        With ws.Range(ws.Cells(debutGroupe, 2), ws.Cells(finGroupe, maxCol)).Borders(xlEdgeRight)
-            .LineStyle = xlContinuous
-            .Weight = xlThick
-            .ColorIndex = 1
-        End With
-        
-        With ws.Range(ws.Cells(debutGroupe, 2), ws.Cells(finGroupe, maxCol)).Borders(xlEdgeTop)
-            .LineStyle = xlContinuous
-            .Weight = xlThick
-            .ColorIndex = 1
-        End With
-        
-        With ws.Range(ws.Cells(debutGroupe, 2), ws.Cells(finGroupe, maxCol)).Borders(xlEdgeBottom)
-            .LineStyle = xlContinuous
-            .Weight = xlThick
-            .ColorIndex = 1
-        End With
-        
-        i = finGroupe + 1 ' Passer à la ligne après ce groupe
-    Wend
-End Sub
 
 
 Sub ConfigurerMiseEnPage()
