@@ -1,9 +1,9 @@
 Sub FusionnerCellulesCase()
     Dim ws As Worksheet
     Dim lastRow As Long
-    Dim i As Long, j As Long
-    Dim startRow As Long
+    Dim i As Long
     Dim currentValue As String
+    Dim valuesProcessed As Object ' Dictionnaire pour suivre les valeurs déjà traitées
     
     Application.DisplayAlerts = False
     
@@ -13,53 +13,78 @@ Sub FusionnerCellulesCase()
     ' Trouver la dernière ligne des données
     lastRow = ws.Cells(ws.Rows.Count, "A").End(xlUp).Row
     
-    ' Initialiser
-    i = 1
+    ' Créer un dictionnaire pour suivre les valeurs déjà traitées
+    Set valuesProcessed = CreateObject("Scripting.Dictionary")
     
     ' Parcourir toutes les lignes
-    While i <= lastRow
-        If Not IsEmpty(ws.Cells(i, 1)) Then
-            startRow = i
+    For i = 1 To lastRow
+        ' Si la cellule n'est pas vide et n'a pas déjà été traitée
+        If Not IsEmpty(ws.Cells(i, 1)) And Not valuesProcessed.Exists(ws.Cells(i, 1).Value) Then
             currentValue = ws.Cells(i, 1).Value
+            valuesProcessed.Add currentValue, True
             
-            ' Chercher jusqu'où cette valeur se répète
-            j = i + 1
-            While j <= lastRow And (ws.Cells(j, 1).Value = currentValue Or IsEmpty(ws.Cells(j, 1)))
-                j = j + 1
-            Wend
-            
-            ' Décider où s'arrête la fusion
-            Dim endRow As Long
-            If j <= lastRow And ws.Cells(j, 1).Value <> currentValue Then
-                ' Si on trouve une valeur différente, on fusionne jusqu'à 2 lignes avant
-                endRow = j - 2
-                If endRow < startRow Then endRow = startRow
-            Else
-                ' Si on atteint la fin du tableau ou si toutes les valeurs suivantes sont identiques
-                endRow = j - 1
-            End If
-            
-            ' Fusionner les cellules de la colonne A pour ce bloc
-            If endRow > startRow Then
-                ws.Range(ws.Cells(startRow, 1), ws.Cells(endRow, 1)).Merge
-                
-                ' Centrer et formater
-                With ws.Cells(startRow, 1)
-                    .HorizontalAlignment = xlCenter
-                    .VerticalAlignment = xlCenter
-                    .Orientation = 90 ' Texte vertical
-                    .Font.Bold = True
-                    .Interior.Color = RGB(230, 230, 230) ' Fond gris clair
-                End With
-            End If
-            
-            ' Passer à la ligne suivante après la dernière cellule traitée
-            i = j
-        Else
-            ' Si la cellule est vide, passer à la ligne suivante
-            i = i + 1
+            ' Trouver toutes les cellules avec cette valeur et les fusionner
+            FusionnerMemeValeur ws, currentValue, lastRow
         End If
-    Wend
+    Next i
     
     Application.DisplayAlerts = True
+End Sub
+
+Sub FusionnerMemeValeur(ws As Worksheet, valueToFind As String, lastRow As Long)
+    Dim i As Long
+    Dim cellsToMerge As New Collection
+    Dim differentValueRow As Long
+    
+    ' Collecter toutes les cellules avec cette valeur
+    For i = 1 To lastRow
+        If Not IsEmpty(ws.Cells(i, 1)) Then
+            If ws.Cells(i, 1).Value = valueToFind Then
+                ' Ajouter cette ligne à la collection
+                cellsToMerge.Add i
+            ElseIf cellsToMerge.Count > 0 Then
+                ' Si on trouve une valeur différente après avoir trouvé au moins une occurrence
+                ' Noter cette ligne comme le début d'une autre valeur
+                differentValueRow = i
+                Exit For
+            End If
+        End If
+    Next i
+    
+    ' Si une collection de cellules à fusionner a été créée
+    If cellsToMerge.Count > 0 Then
+        ' Fusionner les cellules, s'arrêter 1 ligne avant la valeur différente si elle existe
+        For i = 1 To cellsToMerge.Count
+            Dim currentRow As Long
+            currentRow = cellsToMerge(i)
+            
+            ' Si c'est la dernière occurrence et qu'une valeur différente suit
+            If i = cellsToMerge.Count And differentValueRow > 0 Then
+                ' Ne pas fusionner la dernière ligne avant la valeur différente
+                If currentRow < differentValueRow - 1 Then
+                    ws.Range(ws.Cells(currentRow, 1), ws.Cells(differentValueRow - 2, 1)).Merge
+                End If
+            ElseIf i < cellsToMerge.Count Then
+                ' Fusionner jusqu'à la ligne avant la prochaine occurrence
+                Dim nextRow As Long
+                nextRow = cellsToMerge(i + 1)
+                
+                If nextRow - currentRow > 1 Then
+                    ws.Range(ws.Cells(currentRow, 1), ws.Cells(nextRow - 1, 1)).Merge
+                End If
+            ElseIf differentValueRow = 0 Then
+                ' Si c'est la dernière occurrence et aucune valeur différente ne suit
+                ws.Range(ws.Cells(currentRow, 1), ws.Cells(lastRow, 1)).Merge
+            End If
+            
+            ' Formater la cellule
+            With ws.Cells(currentRow, 1)
+                .HorizontalAlignment = xlCenter
+                .VerticalAlignment = xlCenter
+                .Orientation = 90 ' Texte vertical
+                .Font.Bold = True
+                .Interior.Color = RGB(230, 230, 230) ' Fond gris clair
+            End With
+        Next i
+    End If
 End Sub
