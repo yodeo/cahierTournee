@@ -1,43 +1,52 @@
-Sub ConfigurerMiseEnPage()
+Sub AjouterIndicateursContinuite()
     Dim ws As Worksheet
     Dim lastRow As Long
     Dim i As Long
+    Dim currentCase As String
+    Dim isFirstEmpty As Boolean
     
-    Application.ScreenUpdating = False ' Désactiver les mises à jour de l'écran pour accélérer l'exécution
-
     ' Définir la feuille de travail cible
     Set ws = ThisWorkbook.Sheets("Transposé")
     
     ' Trouver la dernière ligne des données
     lastRow = ws.Cells(ws.Rows.Count, "A").End(xlUp).Row
     
-    ' Supprimer tous les sauts de page existants
-    ws.ResetAllPageBreaks
+    ' Symbole flèche vers le bas
+    Const FLECHE = "↓"  ' Caractère Unicode 2193
     
-    ' Ajouter des sauts de page toutes les 24 lignes
-    For i = 24 To lastRow Step 24
-        ws.HPageBreaks.Add Before:=ws.Rows(i + 1)
+    currentCase = ""
+    isFirstEmpty = True
+    
+    ' Parcourir toutes les lignes
+    For i = 1 To lastRow
+        If Not IsEmpty(ws.Cells(i, 1)) Then
+            ' Stocker la valeur de la case actuelle
+            currentCase = ws.Cells(i, 1).Value
+            isFirstEmpty = True
+        ElseIf currentCase <> "" Then
+            ' Si la cellule est vide et qu'on a une case en cours
+            ' Vérifier la ligne suivante pour voir si c'est la même case
+            If i < lastRow Then
+                If Not IsEmpty(ws.Cells(i + 1, 1)) And ws.Cells(i + 1, 1).Value = currentCase Then
+                    ' Si c'est la même case qui continue après la ligne vide,
+                    ' Ajouter le symbole de flèche
+                    If isFirstEmpty Then
+                        With ws.Cells(i, 1)
+                            .Value = FLECHE
+                            .HorizontalAlignment = xlCenter
+                            .VerticalAlignment = xlCenter
+                            .Font.Bold = True
+                            .Font.Size = 14
+                            .Interior.Color = RGB(230, 230, 230) ' Fond gris clair
+                        End With
+                        isFirstEmpty = False
+                    End If
+                ElseIf Not IsEmpty(ws.Cells(i + 1, 1)) And ws.Cells(i + 1, 1).Value <> currentCase Then
+                    ' Si c'est une nouvelle case qui commence, réinitialiser
+                    currentCase = ""
+                    isFirstEmpty = True
+                End If
+            End If
+        End If
     Next i
-    
-    ' Configurer la mise en page pour chaque feuille
-    For Each ws In ThisWorkbook.Sheets
-        With ws.PageSetup
-            .Orientation = xlLandscape ' Mode paysage
-            .PaperSize = xlPaperA4 ' Papier format A4
-            .TopMargin = Application.InchesToPoints(0) ' Marges à 0
-            .BottomMargin = Application.InchesToPoints(0)
-            .LeftMargin = Application.InchesToPoints(0)
-            .RightMargin = Application.InchesToPoints(0)
-            .HeaderMargin = Application.InchesToPoints(0)
-            .FooterMargin = Application.InchesToPoints(0)
-            .CenterFooter = "Page &P" ' Numéro de page au centre du pied de page
-            
-            ' Ajuster la mise à l'échelle pour limiter aux 16 colonnes (A à P)
-            .FitToPagesWide = 1
-            .FitToPagesTall = False
-            .Zoom = False
-        End With
-    Next ws
-
-    Application.ScreenUpdating = True ' Réactiver les mises à jour de l'écran
 End Sub
