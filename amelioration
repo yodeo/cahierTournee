@@ -1,90 +1,43 @@
-Sub FusionnerCellulesCase()
+Sub ConfigurerMiseEnPage()
     Dim ws As Worksheet
     Dim lastRow As Long
     Dim i As Long
-    Dim currentValue As String
-    Dim valuesProcessed As Object ' Dictionnaire pour suivre les valeurs déjà traitées
     
-    Application.DisplayAlerts = False
-    
+    Application.ScreenUpdating = False ' Désactiver les mises à jour de l'écran pour accélérer l'exécution
+
     ' Définir la feuille de travail cible
     Set ws = ThisWorkbook.Sheets("Transposé")
     
     ' Trouver la dernière ligne des données
     lastRow = ws.Cells(ws.Rows.Count, "A").End(xlUp).Row
     
-    ' Créer un dictionnaire pour suivre les valeurs déjà traitées
-    Set valuesProcessed = CreateObject("Scripting.Dictionary")
+    ' Supprimer tous les sauts de page existants
+    ws.ResetAllPageBreaks
     
-    ' Parcourir toutes les lignes
-    For i = 1 To lastRow
-        ' Si la cellule n'est pas vide et n'a pas déjà été traitée
-        If Not IsEmpty(ws.Cells(i, 1)) And Not valuesProcessed.Exists(ws.Cells(i, 1).Value) Then
-            currentValue = ws.Cells(i, 1).Value
-            valuesProcessed.Add currentValue, True
-            
-            ' Trouver toutes les cellules avec cette valeur et les fusionner
-            FusionnerMemeValeur ws, currentValue, lastRow
-        End If
+    ' Ajouter des sauts de page toutes les 24 lignes
+    For i = 24 To lastRow Step 24
+        ws.HPageBreaks.Add Before:=ws.Rows(i + 1)
     Next i
     
-    Application.DisplayAlerts = True
-End Sub
+    ' Configurer la mise en page pour chaque feuille
+    For Each ws In ThisWorkbook.Sheets
+        With ws.PageSetup
+            .Orientation = xlLandscape ' Mode paysage
+            .PaperSize = xlPaperA4 ' Papier format A4
+            .TopMargin = Application.InchesToPoints(0) ' Marges à 0
+            .BottomMargin = Application.InchesToPoints(0)
+            .LeftMargin = Application.InchesToPoints(0)
+            .RightMargin = Application.InchesToPoints(0)
+            .HeaderMargin = Application.InchesToPoints(0)
+            .FooterMargin = Application.InchesToPoints(0)
+            .CenterFooter = "Page &P" ' Numéro de page au centre du pied de page
+            
+            ' Ajuster la mise à l'échelle pour limiter aux 16 colonnes (A à P)
+            .FitToPagesWide = 1
+            .FitToPagesTall = False
+            .Zoom = False
+        End With
+    Next ws
 
-Sub FusionnerMemeValeur(ws As Worksheet, valueToFind As String, lastRow As Long)
-    Dim i As Long
-    Dim cellsToMerge As New Collection
-    Dim differentValueRow As Long
-    
-    ' Collecter toutes les cellules avec cette valeur
-    For i = 1 To lastRow
-        If Not IsEmpty(ws.Cells(i, 1)) Then
-            If ws.Cells(i, 1).Value = valueToFind Then
-                ' Ajouter cette ligne à la collection
-                cellsToMerge.Add i
-            ElseIf cellsToMerge.Count > 0 Then
-                ' Si on trouve une valeur différente après avoir trouvé au moins une occurrence
-                ' Noter cette ligne comme le début d'une autre valeur
-                differentValueRow = i
-                Exit For
-            End If
-        End If
-    Next i
-    
-    ' Si une collection de cellules à fusionner a été créée
-    If cellsToMerge.Count > 0 Then
-        ' Fusionner les cellules, s'arrêter 1 ligne avant la valeur différente si elle existe
-        For i = 1 To cellsToMerge.Count
-            Dim currentRow As Long
-            currentRow = cellsToMerge(i)
-            
-            ' Si c'est la dernière occurrence et qu'une valeur différente suit
-            If i = cellsToMerge.Count And differentValueRow > 0 Then
-                ' Ne pas fusionner la dernière ligne avant la valeur différente
-                If currentRow < differentValueRow - 1 Then
-                    ws.Range(ws.Cells(currentRow, 1), ws.Cells(differentValueRow - 2, 1)).Merge
-                End If
-            ElseIf i < cellsToMerge.Count Then
-                ' Fusionner jusqu'à la ligne avant la prochaine occurrence
-                Dim nextRow As Long
-                nextRow = cellsToMerge(i + 1)
-                
-                If nextRow - currentRow > 1 Then
-                    ws.Range(ws.Cells(currentRow, 1), ws.Cells(nextRow - 1, 1)).Merge
-                End If
-            ElseIf differentValueRow = 0 Then
-                ' Si c'est la dernière occurrence et aucune valeur différente ne suit
-                ws.Range(ws.Cells(currentRow, 1), ws.Cells(lastRow, 1)).Merge
-            End If
-            
-            ' Formater la cellule
-            With ws.Cells(currentRow, 1)
-                .HorizontalAlignment = xlCenter
-                .VerticalAlignment = xlCenter
-                .Orientation = 90 ' Texte vertical
-                .Font.Bold = True
-                .Interior.Color = RGB(230, 230, 230) ' Fond gris clair
-            End With
-        Next i
-    End If
+    Application.ScreenUpdating = True ' Réactiver les mises à jour de l'écran
 End Sub
