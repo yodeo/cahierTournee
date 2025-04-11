@@ -7,7 +7,7 @@ Sub TransposerDonneesSelectionnees()
     Dim destCol As Long
     Dim destRow As Long
     Dim maxCol As Long
-    Dim currentCaseModule As String ' Variable pour suivre le module actuel
+    Dim currentCaseModule As String
 
     maxCol = 15 ' Colonne O
 
@@ -52,35 +52,33 @@ Sub TransposerDonneesSelectionnees()
             destRow = destRow + 4
         End If
 
-        ' --- Forcer le format texte pour chaque cellule transposée ---
+        ' --- Transposer et forcer le format texte (sans égal visible) ---
 
         With wsDest.Cells(destRow, destCol)
             .NumberFormat = "@"
-            .Formula = "='" & wsSource.Cells(i, 1).Text & "'" ' NUM ext
+            .Value = CStr(wsSource.Cells(i, 1).Text) ' NUM ext
         End With
 
         With wsDest.Cells(destRow + 1, destCol)
             .NumberFormat = "@"
-            .Formula = "='" & wsSource.Cells(i, 4).Text & "'" ' OBSERVATIONS
+            .Value = CStr(wsSource.Cells(i, 4).Text) ' OBSERVATIONS
         End With
 
         With wsDest.Cells(destRow + 2, destCol)
             .NumberFormat = "@"
-            .Formula = "='" & wsSource.Cells(i, 2).Text & "'" ' VOIE
+            .Value = CStr(wsSource.Cells(i, 2).Text) ' VOIE
             .Interior.Color = wsSource.Cells(i, 2).Interior.Color
             .Font.Color = wsSource.Cells(i, 2).Font.Color
         End With
 
-        ' Colonne A = Case Module (vertical)
         With wsDest.Cells(destRow, 1)
             .NumberFormat = "@"
-            .Value = currentCaseModule
+            .Value = CStr(currentCaseModule)
             .Orientation = 90
             .Font.Bold = True
             .Interior.Color = RGB(230, 230, 230)
         End With
 
-        ' Bordures
         With wsDest.Range(wsDest.Cells(destRow, destCol), wsDest.Cells(destRow + 2, destCol)).Borders
             .LineStyle = xlContinuous
             .ColorIndex = 0
@@ -97,6 +95,7 @@ Sub TransposerDonneesSelectionnees()
     Application.Calculation = xlCalculationAutomatic
     Application.DisplayAlerts = True
 
+    ' Appels aux sous-routines
     Call FusionnerCellulesMemeLigne
     Call AjusterDimensions
     Call CentrerCellules
