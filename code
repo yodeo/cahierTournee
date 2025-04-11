@@ -19,20 +19,16 @@ Sub AjusterTaillePolice()
     ' Objet pour mesurer le texte
     Set ctlLabel = CreateObject("Forms.Label.1")
     ctlLabel.Font.Name = ws.Cells(1, 1).Font.Name
-    ctlLabel.WordWrap = True
-    ctlLabel.AutoSize = True
+    ctlLabel.Visible = False ' pas besoin d'afficher
 
-    ' Pour de meilleures perfs
     Application.ScreenUpdating = False
 
-    ' Parcourir chaque cellule
     For Each cell In plageTableau
         On Error Resume Next
 
         ' Ignorer les lignes paires
         If cell.Row Mod 2 = 0 Then GoTo NextCell
 
-        ' Cellule fusionnée
         If cell.MergeCells Then
             Set mergedCell = cell.MergeArea
             If cell.Address = mergedCell.Cells(1, 1).Address Then
@@ -41,8 +37,6 @@ Sub AjusterTaillePolice()
                 cellValue = CStr(mergedCell.Value)
                 Call AjusterTailleAvecMesure(mergedCell, largeurCell, hauteurCell, cellValue, ctlLabel)
             End If
-
-        ' Cellule normale avec bordures
         Else
             If ACelluleAvecBordures(cell) Then
                 largeurCell = cell.Width
@@ -66,17 +60,18 @@ Sub AjusterTailleAvecMesure(cellRange As Range, largeur As Double, hauteur As Do
     Dim tailleTest As Double
     Dim ok As Boolean: ok = False
 
-    With ctlLabel
-        .Caption = texte
-        .Width = largeur
-        .WordWrap = True
-    End With
-
     For tailleTest = tailleMax To tailleMin Step -0.5
-        ctlLabel.Font.Size = tailleTest
+        With ctlLabel
+            .AutoSize = False
+            .WordWrap = True
+            .Width = largeur
+            .Caption = texte
+            .Font.Size = tailleTest
+        End With
+
         DoEvents
 
-        ctlLabel.Width = largeur
+        ' Remettre autosize pour mesurer la hauteur réelle
         ctlLabel.AutoSize = True
 
         If ctlLabel.Height <= hauteur And ctlLabel.Width <= largeur Then
@@ -85,7 +80,6 @@ Sub AjusterTailleAvecMesure(cellRange As Range, largeur As Double, hauteur As Do
         End If
     Next tailleTest
 
-    ' 👉 Si aucune taille ne rentre, forcer à 6
     If Not ok Then tailleTest = tailleMin
 
     With cellRange
