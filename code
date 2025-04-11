@@ -1,155 +1,97 @@
 Option Explicit
 
 Sub AjusterTaillePolice()
-    ' Macro permettant d'ajuster la taille de police en fonction de la hauteur et largeur des cellules
-    ' Particulièrement utile pour les tableaux d'association où les cellules de numéros de voies
-    ' ne contiennent qu'un numéro entier
-    
     Dim ws As Worksheet
-    Dim cell As Range
-    Dim mergedCell As Range
+    Dim cell As Range, mergedCell As Range
     Dim plageTableau As Range
-    Dim largeurCell As Double
-    Dim hauteurCell As Double
-    Dim texteLength As Long
-    Dim estNumeroPair As Boolean
-    Dim cellValue As Variant
-    
-    ' Définir la feuille active
+    Dim largeurCell As Double, hauteurCell As Double
+    Dim cellValue As String
+
     Set ws = ActiveSheet
-    
-    ' Définir la plage du tableau fixe A1:AA43
     Set plageTableau = ws.Range("A1:AA43")
     
-    ' Désactiver la mise à jour de l'écran pour améliorer les performances
     Application.ScreenUpdating = False
-    
-    ' Parcourir chaque cellule de la plage
+
+    Dim ctlLabel As Object
+    Set ctlLabel = CreateObject("Forms.Label.1")
+
+    ctlLabel.Font.Name = ws.Cells(1, 1).Font.Name
+
     For Each cell In plageTableau
         On Error Resume Next
+
+        ' Ignorer les lignes paires
+        If cell.Row Mod 2 = 0 Then GoTo SkipCell
         
-        ' Ignorer les lignes paires (libellés de voie)
-        If cell.Row Mod 2 = 0 Then
-            ' Ne rien faire pour les lignes paires
-        ' Pour les autres lignes, procéder normalement
-        ElseIf cell.MergeCells Then
-            ' Si c'est le cas, travailler avec la plage fusionnée complète
-            Set mergedCell = ws.Range(cell.MergeArea.Address)
-            ' Ne traiter que la première cellule de la zone fusionnée pour éviter les doublons
+        If cell.MergeCells Then
+            Set mergedCell = cell.MergeArea
             If cell.Address = mergedCell.Cells(1, 1).Address Then
-                ' Obtenir dimensions de la zone fusionnée
                 largeurCell = mergedCell.Width
                 hauteurCell = mergedCell.Height
-                
-                ' Calculer la taille de police appropriée pour la zone fusionnée
-                cellValue = mergedCell.Value
-                
-                ' Sécuriser la longueur du texte
-                If IsNull(cellValue) Or IsEmpty(cellValue) Then
-                    texteLength = 0
-                Else
-                    texteLength = Len(CStr(cellValue))
-                End If
-                
-                Call CalculerEtAppliquerTaille(mergedCell, largeurCell, hauteurCell, texteLength, False)
+                cellValue = CStr(mergedCell.Value)
+                Call AjusterTaillePoliceUnique(mergedCell, largeurCell, hauteurCell, cellValue, ctlLabel)
             End If
         Else
-            ' Pour les lignes impaires uniquement
-            If cell.Row Mod 2 <> 0 Then
-                ' Obtenir dimensions de la cellule individuelle
+            If ACelluleAvecBordures(cell) Then
                 largeurCell = cell.Width
                 hauteurCell = cell.Height
-                
-                ' Vérifier si la cellule a des bordures (est une "case")
-                If ACelluleAvecBordures(cell) Then
-                    cellValue = cell.Value
-                    
-                    ' Sécuriser la longueur du texte
-                    If IsNull(cellValue) Or IsEmpty(cellValue) Then
-                        texteLength = 0
-                    Else
-                        texteLength = Len(CStr(cellValue))
-                    End If
-                    
-                    Call CalculerEtAppliquerTaille(cell, largeurCell, hauteurCell, texteLength, False)
-                End If
+                cellValue = CStr(cell.Value)
+                Call AjusterTaillePoliceUnique(cell, largeurCell, hauteurCell, cellValue, ctlLabel)
             End If
         End If
-        
+SkipCell:
         On Error GoTo 0
     Next cell
-    
-    ' Réactiver la mise à jour de l'écran
+
     Application.ScreenUpdating = True
-    
-    MsgBox "Ajustement de la taille des polices terminé!", vbInformation
+    MsgBox "Ajustement terminé !", vbInformation
+End Sub
+
+Sub AjusterTaillePoliceUnique(cellRange As Range, largeur As Double, hauteur As Double, texte As String, ctlLabel As Object)
+    Dim tailleMin As Double: tailleMin = 6
+    Dim tailleMax As Double: tailleMax = 18
+    Dim tailleTest As Double
+    Dim largeurTexte As Double
+    Dim ok As Boolean: ok = False
+
+    ctlLabel.Caption = texte
+    ctlLabel.WordWrap = True
+    ctlLabel.AutoSize = True
+
+    For tailleTest = tailleMax To tailleMin Step -0.5
+        ctlLabel.Font.Size = tailleTest
+        DoEvents
+        
+        largeurTexte = ctlLabel.Width
+        ctlLabel.Height = 9999 ' for wordwrap
+        ctlLabel.Width = largeur
+        
+        If ctlLabel.Height <= hauteur And ctlLabel.Width <= largeur Then
+            ok = True
+            Exit For
+        End If
+    Next tailleTest
+
+    If ok Then
+        cellRange.Font.Size = tailleTest
+    Else
+        cellRange.Font.Size = tailleMin
+    End If
+
+    cellRange.Font.Bold = True
+    cellRange.WrapText = True
+    cellRange.ShrinkToFit = False
 End Sub
 
 Function ACelluleAvecBordures(cell As Range) As Boolean
-    ' Vérifie si une cellule est entourée de bordures
     On Error Resume Next
-    
-    Dim aBordure As Boolean
-    
-    aBordure = (cell.Borders(xlEdgeLeft).LineStyle <> xlNone) And _
-               (cell.Borders(xlEdgeRight).LineStyle <> xlNone) And _
-               (cell.Borders(xlEdgeTop).LineStyle <> xlNone) And _
-               (cell.Borders(xlEdgeBottom).LineStyle <> xlNone)
-               
-    ACelluleAvecBordures = aBordure
-    
+    ACelluleAvecBordures = (cell.Borders(xlEdgeLeft).LineStyle <> xlNone) And _
+                           (cell.Borders(xlEdgeRight).LineStyle <> xlNone) And _
+                           (cell.Borders(xlEdgeTop).LineStyle <> xlNone) And _
+                           (cell.Borders(xlEdgeBottom).LineStyle <> xlNone)
     On Error GoTo 0
 End Function
 
-Sub CalculerEtAppliquerTaille(cellRange As Range, largeur As Double, hauteur As Double, longueurTexte As Long, estNumeroPair As Boolean)
-    ' Calcule et applique la taille de police appropriée en fonction des dimensions
-    On Error Resume Next
-    
-    Dim nouvelleTaille As Double
-    Dim facteurAjustement As Double
-    Dim tailleMax As Double
-    Dim tailleMin As Double
-    
-    ' Définir les limites de taille
-    tailleMax = 18  ' Taille maximale de police
-    tailleMin = 6   ' Taille minimale de police
-    
-    ' Calculer le facteur d'ajustement - peut être modifié selon vos besoins
-    facteurAjustement = 0.4
-    
-    If estNumeroPair Then
-        ' Pour les numéros entiers dans les lignes paires (numéros de voies)
-        ' On peut augmenter légèrement la taille
-        facteurAjustement = 0.5
-    End If
-    
-    ' Calculer la nouvelle taille en fonction des dimensions
-    ' Cette formule peut être ajustée selon vos besoins spécifiques
-    If longueurTexte > 0 Then
-        nouvelleTaille = WorksheetFunction.Min(largeur / (longueurTexte * facteurAjustement), hauteur / 1.5)
-    Else
-        nouvelleTaille = WorksheetFunction.Min(largeur / facteurAjustement, hauteur / 1.5)
-    End If
-    
-    ' Limiter la taille aux valeurs min/max
-    nouvelleTaille = WorksheetFunction.Min(tailleMax, WorksheetFunction.Max(tailleMin, nouvelleTaille))
-    
-    ' Arrondir à la demi-unité près
-    nouvelleTaille = Round(nouvelleTaille * 2) / 2
-    
-    ' Appliquer la nouvelle taille de police
-    cellRange.Font.Size = nouvelleTaille
-    
-    On Error GoTo 0
-End Sub
-
 Sub AjusterTailleTableauComplet()
-    ' Macro pour ajuster la police de tout le tableau d'association
-    ' Exécution directe sur la plage A1:AA43
-    
-    ' Exécuter l'ajustement sans demander de sélection
     Call AjusterTaillePolice
 End Sub
-
-
-
