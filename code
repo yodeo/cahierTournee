@@ -7,37 +7,40 @@ Sub AjusterTaillePolice()
     Dim plageTableau As Range
     Dim largeurCell As Double
     Dim hauteurCell As Double
-    Dim cellValue As String
-    Dim ctlLabel As Object
+    Dim texte As String
+    Dim tailleCalculée As Double
 
     Set ws = ActiveSheet
-    Set plageTableau = ws.Range("A1:AA43")
-
-    ' Crée un label pour mesurer le texte
-    Set ctlLabel = CreateObject("Forms.Label.1")
-    ctlLabel.Font.Name = ws.Cells(1, 1).Font.Name
+    Set plageTableau = ws.Range("A1:AA1500") ' ✅ élargi jusqu’à ligne 1500
 
     Application.ScreenUpdating = False
 
     For Each cell In plageTableau
         On Error Resume Next
 
+        ' Ignorer les lignes paires (libellés de voie)
         If cell.Row Mod 2 = 0 Then GoTo NextCell
 
+        ' Cellule fusionnée
         If cell.MergeCells Then
             Set mergedCell = cell.MergeArea
             If cell.Address = mergedCell.Cells(1, 1).Address Then
                 largeurCell = mergedCell.Width
                 hauteurCell = mergedCell.Height
-                cellValue = CStr(mergedCell.Value)
-                Call AjusterTailleAvecMesure(mergedCell, largeurCell, hauteurCell, cellValue, ctlLabel)
+                texte = CStr(mergedCell.Value)
+                tailleCalculée = CalculerTaillePolice(largeurCell, hauteurCell, texte)
+                AppliquerFormat mergedCell, tailleCalculée
             End If
         Else
+            ' Cellule non fusionnée avec bordures
             If ACelluleAvecBordures(cell) Then
-                largeurCell = cell.Width
-                hauteurCell = cell.Height
-                cellValue = CStr(cell.Value)
-                Call AjusterTailleAvecMesure(cell, largeurCell, hauteurCell, cellValue, ctlLabel)
+                If Not IsEmpty(cell.Value) Then
+                    largeurCell = cell.Width
+                    hauteurCell = cell.Height
+                    texte = CStr(cell.Value)
+                    tailleCalculée = CalculerTaillePolice(largeurCell, hauteurCell, texte)
+                    AppliquerFormat cell, tailleCalculée
+                End If
             End If
         End If
 
@@ -46,43 +49,44 @@ NextCell:
     Next cell
 
     Application.ScreenUpdating = True
-    MsgBox "Ajustement de la taille des polices terminé!", vbInformation
+    MsgBox "Ajustement terminé sur A1:AA1500 ✔️", vbInformation
 End Sub
 
-Sub AjusterTailleAvecMesure(cellRange As Range, largeur As Double, hauteur As Double, texte As String, ctlLabel As Object)
+Function CalculerTaillePolice(largeur As Double, hauteur As Double, texte As String) As Double
     Dim tailleMin As Double: tailleMin = 6
     Dim tailleMax As Double: tailleMax = 18
-    Dim tailleTest As Double
-    Dim ok As Boolean: ok = False
-    Dim testHeight As Double
-    Dim testWidth As Double
+    Dim longueur As Long
+    Dim tailleParLargeur As Double
+    Dim tailleParHauteur As Double
+    Dim facteurLargeur As Double: facteurLargeur = 1.2 ' ajustable selon ton besoin
 
-    For tailleTest = tailleMax To tailleMin Step -0.5
-        With ctlLabel
-            .AutoSize = False
-            .WordWrap = False
-            .Width = 1000 ' large temporairement pour éviter bug
-            .Caption = texte
-            .Font.Size = tailleTest
-            .AutoSize = True
-        End With
+    longueur = Len(texte)
+    If longueur = 0 Then
+        CalculerTaillePolice = tailleMin
+        Exit Function
+    End If
 
-        testHeight = ctlLabel.Height
-        testWidth = ctlLabel.Width
+    ' Estimations en fonction des dimensions disponibles
+    tailleParLargeur = largeur / (longueur * facteurLargeur)
+    tailleParHauteur = hauteur / 1.2 ' empirique : hauteur ligne ~1.2 × taille
 
-        If testWidth <= largeur And testHeight <= hauteur Then
-            ok = True
-            Exit For
-        End If
-    Next tailleTest
+    ' Prendre la plus petite des deux
+    CalculerTaillePolice = Application.WorksheetFunction.Min(tailleParLargeur, tailleParHauteur)
 
-    If Not ok Then tailleTest = tailleMin
+    ' Clamp dans [6, 18]
+    If CalculerTaillePolice < tailleMin Then CalculerTaillePolice = tailleMin
+    If CalculerTaillePolice > tailleMax Then CalculerTaillePolice = tailleMax
 
-    With cellRange
-        .Font.Size = tailleTest
+    ' Arrondir à 0.5 près
+    CalculerTaillePolice = Round(CalculerTaillePolice * 2) / 2
+End Function
+
+Sub AppliquerFormat(c As Range, taille As Double)
+    With c
+        .Font.Size = taille
+        .Font.Bold = True
         .WrapText = True
         .ShrinkToFit = False
-        .Font.Bold = True
     End With
 End Sub
 
