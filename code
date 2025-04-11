@@ -35,15 +35,20 @@ Sub TransposerDonneesSelectionnees()
 
     destCol = 2 ' Colonne B
     destRow = 1
-    currentCaseModule = ""
 
-    For i = 1 To lastRow
+    ' Initialiser le module courant avec la valeur de la 2e ligne (ligne 2)
+    currentCaseModule = wsSource.Cells(2, 8).Value
 
-        If wsSource.Cells(i, 8).Value <> "" And wsSource.Cells(i, 8).Value <> currentCaseModule Then
-            currentCaseModule = wsSource.Cells(i, 8).Value
-            If destCol > 2 Then
-                destCol = 2
-                destRow = destRow + 4
+    For i = 2 To lastRow ' Commencer à la ligne 2
+
+        ' Détecter un changement de "case module" uniquement à partir de la ligne 3
+        If i > 2 Then
+            If wsSource.Cells(i, 8).Value <> "" And wsSource.Cells(i, 8).Value <> currentCaseModule Then
+                currentCaseModule = wsSource.Cells(i, 8).Value
+                If destCol > 2 Then
+                    destCol = 2
+                    destRow = destRow + 4
+                End If
             End If
         End If
 
@@ -52,7 +57,7 @@ Sub TransposerDonneesSelectionnees()
             destRow = destRow + 4
         End If
 
-        ' --- Transposer et forcer le format texte (sans égal visible) ---
+        ' Transposer et forcer le format texte (sans égal visible)
 
         With wsDest.Cells(destRow, destCol)
             .NumberFormat = "@"
@@ -95,7 +100,7 @@ Sub TransposerDonneesSelectionnees()
     Application.Calculation = xlCalculationAutomatic
     Application.DisplayAlerts = True
 
-    ' Appels aux sous-routines
+    ' Appels aux sous-routines post-traitement
     Call FusionnerCellulesMemeLigne
     Call AjusterDimensions
     Call CentrerCellules
