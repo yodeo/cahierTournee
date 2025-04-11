@@ -8,20 +8,16 @@ Sub AjusterTaillePolice()
     Dim largeurCell As Double
     Dim hauteurCell As Double
     Dim cellValue As String
-    Dim ctlLabel As Object
 
     Set ws = ActiveSheet
     Set plageTableau = ws.Range("A1:AA43")
-
-    ' Crée un label pour mesurer le texte
-    Set ctlLabel = CreateObject("Forms.Label.1")
-    ctlLabel.Font.Name = ws.Cells(1, 1).Font.Name
 
     Application.ScreenUpdating = False
 
     For Each cell In plageTableau
         On Error Resume Next
 
+        ' Ignorer les lignes paires
         If cell.Row Mod 2 = 0 Then GoTo NextCell
 
         If cell.MergeCells Then
@@ -30,14 +26,17 @@ Sub AjusterTaillePolice()
                 largeurCell = mergedCell.Width
                 hauteurCell = mergedCell.Height
                 cellValue = CStr(mergedCell.Value)
-                Call AjusterTailleAvecMesure(mergedCell, largeurCell, hauteurCell, cellValue, ctlLabel)
+                Call AppliquerTailleFusionnee(mergedCell, largeurCell, hauteurCell, cellValue)
             End If
         Else
             If ACelluleAvecBordures(cell) Then
-                largeurCell = cell.Width
-                hauteurCell = cell.Height
-                cellValue = CStr(cell.Value)
-                Call AjusterTailleAvecMesure(cell, largeurCell, hauteurCell, cellValue, ctlLabel)
+                If Not IsEmpty(cell.Value) And Trim(cell.Value) <> "" Then
+                    ' Si texte trop long ou cellule étroite, forcer à 6
+                    cell.Font.Size = 6
+                    cell.WrapText = True
+                    cell.ShrinkToFit = False
+                    cell.Font.Bold = True
+                End If
             End If
         End If
 
@@ -46,31 +45,18 @@ NextCell:
     Next cell
 
     Application.ScreenUpdating = True
-    MsgBox "Ajustement de la taille des polices terminé!", vbInformation
+    MsgBox "Taille ajustée avec succès !", vbInformation
 End Sub
 
-Sub AjusterTailleAvecMesure(cellRange As Range, largeur As Double, hauteur As Double, texte As String, ctlLabel As Object)
+Sub AppliquerTailleFusionnee(cellRange As Range, largeur As Double, hauteur As Double, texte As String)
     Dim tailleMin As Double: tailleMin = 6
     Dim tailleMax As Double: tailleMax = 18
     Dim tailleTest As Double
     Dim ok As Boolean: ok = False
-    Dim testHeight As Double
-    Dim testWidth As Double
 
+    ' Boucle de test de taille pour les cellules fusionnées uniquement
     For tailleTest = tailleMax To tailleMin Step -0.5
-        With ctlLabel
-            .AutoSize = False
-            .WordWrap = False
-            .Width = 1000 ' large temporairement pour éviter bug
-            .Caption = texte
-            .Font.Size = tailleTest
-            .AutoSize = True
-        End With
-
-        testHeight = ctlLabel.Height
-        testWidth = ctlLabel.Width
-
-        If testWidth <= largeur And testHeight <= hauteur Then
+        If (largeur >= Len(texte) * tailleTest * 0.7) And (hauteur >= tailleTest * 1.2) Then
             ok = True
             Exit For
         End If
