@@ -8,8 +8,8 @@ Sub TransposerDonneesSelectionnees()
     Dim destRow As Long
     Dim startCol As Long
     Dim maxCol As Long
-    Dim currentGroup As Long
-
+    Dim currentCaseModule As String ' Variable pour suivre le module actuel
+    
     ' Définir la colonne maximale (O = 15)
     maxCol = 15
 
@@ -33,34 +33,35 @@ Sub TransposerDonneesSelectionnees()
     Set wsDest = ThisWorkbook.Sheets.Add(After:=ThisWorkbook.Sheets(ThisWorkbook.Sheets.Count))
     wsDest.Name = "Transposé"
 
+    ' Ajouter une colonne pour le CASE MODULE
+    wsDest.Columns("A:A").Insert Shift:=xlToRight
+    wsDest.Columns("A:A").ColumnWidth = 3
+
     ' Trouver la dernière ligne des données
     lastRow = wsSource.Cells(wsSource.Rows.Count, "A").End(xlUp).Row
 
     ' Initialiser la colonne et la ligne de destination
-    destCol = 1
+    destCol = 2 ' On commence à la colonne B car A est réservée pour le CASE MODULE
     destRow = 1
-    startCol = 1
-    currentGroup = 0
+    currentCaseModule = ""
 
     ' Transposer les données
     For i = 1 To lastRow
-        ' Vérifier si la cellule dans la colonne H contient une lettre
-        If Not IsNumeric(wsSource.Cells(i, 8).Value) And wsSource.Cells(i, 8).Value <> "" Then
-            currentGroup = currentGroup + 1
-            ' Vérifier si on est déjà au début d'une ligne
-            If destCol = 1 Then
-                ' Si on est déjà au début d'une ligne, ajouter 4 lignes
-                destRow = destRow + 4
-            Else
-                ' Si on n'est pas au début d'une ligne, passer à la ligne suivante
-                destCol = 1
+        ' Vérifier s'il y a un changement de case dans la colonne H
+        If wsSource.Cells(i, 8).Value <> "" And wsSource.Cells(i, 8).Value <> currentCaseModule Then
+            ' Si oui, mettre à jour le numéro de case courant
+            currentCaseModule = wsSource.Cells(i, 8).Value
+            
+            ' Passer à la ligne suivante (sauf si on est déjà au début d'une ligne)
+            If destCol > 2 Then
+                destCol = 2
                 destRow = destRow + 4
             End If
         End If
-
-        ' Vérifier si nous avons atteint la colonne maximale et si ce n'est pas un nouveau groupe
-        If destCol > maxCol Then
-            destCol = 1
+        
+        ' Si nous avons atteint la colonne maximale
+        If destCol > maxCol + 1 Then ' +1 car on a décalé avec l'insertion de la colonne A
+            destCol = 2
             destRow = destRow + 4
         End If
 
@@ -75,6 +76,12 @@ Sub TransposerDonneesSelectionnees()
             wsDest.Cells(destRow + 2, destCol).Font.Color = .Font.Color ' Copie de la couleur de police
         End With
 
+        ' Écrire le numéro de case dans la colonne A
+        wsDest.Cells(destRow, 1).Value = currentCaseModule
+        wsDest.Cells(destRow, 1).Orientation = 90 ' Texte vertical
+        wsDest.Cells(destRow, 1).Font.Bold = True
+        wsDest.Cells(destRow, 1).Interior.Color = RGB(230, 230, 230) ' Fond gris clair
+        
         ' Ajouter des bordures aux cellules transposées
         With wsDest.Range(wsDest.Cells(destRow, destCol), wsDest.Cells(destRow + 2, destCol)).Borders
             .LineStyle = xlContinuous
@@ -95,10 +102,10 @@ Sub TransposerDonneesSelectionnees()
     Application.Calculation = xlCalculationAutomatic
     Application.DisplayAlerts = True
 
-    
     Call FusionnerCellulesMemeLigne
     Call AjusterDimensions
     Call CentrerCellules
+    Call FusionnerCellulesCase
     Call ConfigurerMiseEnPage
     
     MsgBox "Création du cahier de tournée terminée!"
@@ -115,7 +122,7 @@ Sub FusionnerCellulesMemeLigne()
     Dim maxCol As Long
     
     ' Définir la colonne maximale (O = 15)
-    maxCol = 15
+    maxCol = 16 ' Ajusté car on a maintenant une colonne de plus
     
     Application.DisplayAlerts = False
 
@@ -132,10 +139,10 @@ Sub FusionnerCellulesMemeLigne()
             currentRow = i + rowOffset
             
             If currentRow <= lastRow Then
-                startCol = 1 ' Initialiser startCol à la première colonne de la ligne
+                startCol = 2 ' Commencer à la colonne B car A est réservée pour le CASE MODULE
     
                 ' Parcourir les colonnes de la ligne, limité à maxCol
-                For j = 2 To maxCol
+                For j = 3 To maxCol ' Ajusté pour commencer à C
                     ' Vérifier si la cellule actuelle et la cellule de départ ne sont pas vides
                     If Not IsEmpty(ws.Cells(currentRow, startCol)) And Not IsEmpty(ws.Cells(currentRow, j)) Then
                         ' Vérifier si la valeur de la cellule actuelle est égale à la valeur de la cellule de départ
@@ -171,6 +178,149 @@ Sub FusionnerCellulesMemeLigne()
     Application.DisplayAlerts = True
 End Sub
 
+Sub FusionnerCellulesCase()
+    Dim ws As Worksheet
+    Dim lastRow As Long
+    Dim i As Long
+    Dim currentValue As String
+    Dim valuesProcessed As Object ' Dictionnaire pour suivre les valeurs déjà traitées
+    
+    Application.DisplayAlerts = False
+    
+    ' Définir la feuille de travail cible
+    Set ws = ThisWorkbook.Sheets("Transposé")
+    
+    ' Trouver la dernière ligne des données
+    lastRow = ws.Cells(ws.Rows.Count, "A").End(xlUp).Row
+    
+    ' Créer un dictionnaire pour suivre les valeurs déjà traitées
+    Set valuesProcessed = CreateObject("Scripting.Dictionary")
+    
+    ' Parcourir toutes les lignes
+    For i = 1 To lastRow
+        ' Si la cellule n'est pas vide et n'a pas déjà été traitée
+        If Not IsEmpty(ws.Cells(i, 1)) And Not valuesProcessed.Exists(ws.Cells(i, 1).Value) Then
+            currentValue = ws.Cells(i, 1).Value
+            valuesProcessed.Add currentValue, True
+            
+            ' Trouver toutes les cellules avec cette valeur et les fusionner
+            FusionnerMemeValeur ws, currentValue, lastRow
+        End If
+    Next i
+    
+    Application.DisplayAlerts = True
+End Sub
+
+Sub AjouterIndicateursContinuite()
+    Dim ws As Worksheet
+    Dim lastRow As Long
+    Dim i As Long
+    Dim currentCase As String
+    Dim isFirstEmpty As Boolean
+    
+    ' Définir la feuille de travail cible
+    Set ws = ThisWorkbook.Sheets("Transposé")
+    
+    ' Trouver la dernière ligne des données
+    lastRow = ws.Cells(ws.Rows.Count, "A").End(xlUp).Row
+    
+    ' Symbole flèche vers le bas
+    Const FLECHE = "?"  ' Caractère Unicode 2193
+    
+    currentCase = ""
+    isFirstEmpty = True
+    
+    ' Parcourir toutes les lignes
+    For i = 1 To lastRow
+        If Not IsEmpty(ws.Cells(i, 1)) Then
+            ' Stocker la valeur de la case actuelle
+            currentCase = ws.Cells(i, 1).Value
+            isFirstEmpty = True
+        ElseIf currentCase <> "" Then
+            ' Si la cellule est vide et qu'on a une case en cours
+            ' Vérifier la ligne suivante pour voir si c'est la même case
+            If i < lastRow Then
+                If Not IsEmpty(ws.Cells(i + 1, 1)) And ws.Cells(i + 1, 1).Value = currentCase Then
+                    ' Si c'est la même case qui continue après la ligne vide,
+                    ' Ajouter le symbole de flèche
+                    If isFirstEmpty Then
+                        With ws.Cells(i, 1)
+                            .Value = FLECHE
+                            .HorizontalAlignment = xlCenter
+                            .VerticalAlignment = xlCenter
+                            .Font.Bold = True
+                            .Font.Size = 14
+                            .Interior.Color = RGB(230, 230, 230) ' Fond gris clair
+                        End With
+                        isFirstEmpty = False
+                    End If
+                ElseIf Not IsEmpty(ws.Cells(i + 1, 1)) And ws.Cells(i + 1, 1).Value <> currentCase Then
+                    ' Si c'est une nouvelle case qui commence, réinitialiser
+                    currentCase = ""
+                    isFirstEmpty = True
+                End If
+            End If
+        End If
+    Next i
+End Sub
+
+Sub FusionnerMemeValeur(ws As Worksheet, valueToFind As String, lastRow As Long)
+    Dim i As Long
+    Dim cellsToMerge As New Collection
+    Dim differentValueRow As Long
+    
+    ' Collecter toutes les cellules avec cette valeur
+    For i = 1 To lastRow
+        If Not IsEmpty(ws.Cells(i, 1)) Then
+            If ws.Cells(i, 1).Value = valueToFind Then
+                ' Ajouter cette ligne à la collection
+                cellsToMerge.Add i
+            ElseIf cellsToMerge.Count > 0 Then
+                ' Si on trouve une valeur différente après avoir trouvé au moins une occurrence
+                ' Noter cette ligne comme le début d'une autre valeur
+                differentValueRow = i
+                Exit For
+            End If
+        End If
+    Next i
+    
+    ' Si une collection de cellules à fusionner a été créée
+    If cellsToMerge.Count > 0 Then
+        ' Fusionner les cellules, s'arrêter 1 ligne avant la valeur différente si elle existe
+        For i = 1 To cellsToMerge.Count
+            Dim currentRow As Long
+            currentRow = cellsToMerge(i)
+            
+            ' Si c'est la dernière occurrence et qu'une valeur différente suit
+            If i = cellsToMerge.Count And differentValueRow > 0 Then
+                ' Ne pas fusionner la dernière ligne avant la valeur différente
+                If currentRow < differentValueRow - 1 Then
+                    ws.Range(ws.Cells(currentRow, 1), ws.Cells(differentValueRow - 2, 1)).Merge
+                End If
+            ElseIf i < cellsToMerge.Count Then
+                ' Fusionner jusqu'à la ligne avant la prochaine occurrence
+                Dim nextRow As Long
+                nextRow = cellsToMerge(i + 1)
+                
+                If nextRow - currentRow > 1 Then
+                    ws.Range(ws.Cells(currentRow, 1), ws.Cells(nextRow - 1, 1)).Merge
+                End If
+            ElseIf differentValueRow = 0 Then
+                ' Si c'est la dernière occurrence et aucune valeur différente ne suit
+                ws.Range(ws.Cells(currentRow, 1), ws.Cells(lastRow, 1)).Merge
+            End If
+            
+            ' Formater la cellule
+            With ws.Cells(currentRow, 1)
+                .HorizontalAlignment = xlCenter
+                .VerticalAlignment = xlCenter
+                .Orientation = 90 ' Texte vertical
+                .Font.Bold = True
+                .Interior.Color = RGB(230, 230, 230) ' Fond gris clair
+            End With
+        Next i
+    End If
+End Sub
 Sub AjusterDimensions()
     Dim i As Long
     Dim ws As Worksheet
@@ -186,6 +336,9 @@ Sub AjusterDimensions()
     ' Trouver la dernière ligne utilisée
     lastRow = ws.Cells(ws.Rows.Count, "A").End(xlUp).Row
 
+    ' Ajuster la colonne CASE MODULE
+    ws.Columns("A:A").ColumnWidth = 3
+    
     ' Ajuster la hauteur et les propriétés des lignes jusqu'à la dernière ligne utilisée
     For i = 1 To lastRow Step 4
         With ws.Rows(i)
@@ -206,14 +359,12 @@ Sub AjusterDimensions()
             End With
         End If
         If i + 3 <= lastRow Then
-            With ws.Rows(i + 3)
-                .RowHeight = 10
-            End With
+            ws.Rows(i + 3).RowHeight = 10
         End If
     Next i
 
-    ' Ajuster uniquement la largeur des 15 premières colonnes (A à O)
-    ws.Columns("A:O").ColumnWidth = 8.5
+    ' Ajuster uniquement la largeur des colonnes B à P (anciennement A à O)
+    ws.Columns("B:P").ColumnWidth = 8.5
     
     ' Réactiver les mises à jour de l'écran et les calculs automatiques
     Application.ScreenUpdating = True
@@ -226,29 +377,44 @@ Sub CentrerCellules()
     Dim usedRange As Range
     Dim maxCol As Long
     
-    maxCol = 15 ' Colonne O
+    maxCol = 16 ' Ajusté car on a maintenant une colonne de plus
 
     ' Définir la feuille de travail cible
     Set ws = ThisWorkbook.Sheets("Transposé")
 
-    ' Définir la plage utilisée dans la feuille de travail (limitée à la colonne P)
-    Set usedRange = ws.Range(ws.Cells(1, 1), ws.Cells(ws.Cells(ws.Rows.Count, "A").End(xlUp).Row, maxCol))
+    ' Définir la plage utilisée dans la feuille de travail (de B à P)
+    Set usedRange = ws.Range(ws.Cells(1, 2), ws.Cells(ws.Cells(ws.Rows.Count, "B").End(xlUp).Row, maxCol))
 
     ' Centrer horizontalement et verticalement les cellules de la plage utilisée
     With usedRange
         .HorizontalAlignment = xlCenter
         .VerticalAlignment = xlCenter
         .WrapText = True
-    End With  
+    End With
 End Sub
-
 
 Sub ConfigurerMiseEnPage()
     Dim ws As Worksheet
+    Dim lastRow As Long
+    Dim i As Long
     
     Application.ScreenUpdating = False ' Désactiver les mises à jour de l'écran pour accélérer l'exécution
 
-    ' Parcourir chaque feuille du classeur
+    ' Définir la feuille de travail cible
+    Set ws = ThisWorkbook.Sheets("Transposé")
+    
+    ' Trouver la dernière ligne des données
+    lastRow = ws.Cells(ws.Rows.Count, "A").End(xlUp).Row
+    
+    ' Supprimer tous les sauts de page existants
+    ws.ResetAllPageBreaks
+    
+    ' Ajouter des sauts de page toutes les 24 lignes
+    For i = 24 To lastRow Step 24
+        ws.HPageBreaks.Add Before:=ws.Rows(i + 1)
+    Next i
+    
+    ' Configurer la mise en page pour chaque feuille
     For Each ws In ThisWorkbook.Sheets
         With ws.PageSetup
             .Orientation = xlLandscape ' Mode paysage
@@ -261,7 +427,7 @@ Sub ConfigurerMiseEnPage()
             .FooterMargin = Application.InchesToPoints(0)
             .CenterFooter = "Page &P" ' Numéro de page au centre du pied de page
             
-            ' Ajuster la mise à l'échelle pour limiter aux 15 colonnes (A à O)
+            ' Ajuster la mise à l'échelle pour limiter aux 16 colonnes (A à P)
             .FitToPagesWide = 1
             .FitToPagesTall = False
             .Zoom = False
