@@ -1,28 +1,24 @@
 Option Explicit
 
-' === LANCEUR PRINCIPAL ===
 Sub AjusterTaillePolice()
     Dim ws As Worksheet
     Dim cell As Range
     Dim plageTableau As Range
 
     Set ws = ActiveSheet
-    Set plageTableau = ws.Range("A1:AA1500") ' ✅ plage étendue jusqu'à la ligne 1500
+    Set plageTableau = ws.Range("A1:AA1500")
 
     Application.ScreenUpdating = False
 
     For Each cell In plageTableau
         On Error Resume Next
 
-        ' Ignorer les lignes paires
         If cell.Row Mod 2 = 0 Then GoTo NextCell
 
-        ' === CELLULE FUSIONNÉE ===
         If cell.MergeCells Then
             If cell.Address = cell.MergeArea.Cells(1, 1).Address Then
                 Call AjusterPoliceCellule(cell.MergeArea)
             End If
-        ' === CELLULE INDIVIDUELLE ===
         Else
             If ACelluleAvecBordures(cell) And Not IsEmpty(cell.Value) Then
                 Call AjusterPoliceCellule(cell)
@@ -34,14 +30,14 @@ NextCell:
     Next cell
 
     Application.ScreenUpdating = True
-    MsgBox "Ajustement des tailles de police terminé ✔️", vbInformation
+    MsgBox "Taille de police ajustée sans modifier les hauteurs ✔️", vbInformation
 End Sub
 
-' === AJUSTEMENT DYNAMIQUE DE LA POLICE ===
 Sub AjusterPoliceCellule(c As Range)
     Dim tailleMin As Double: tailleMin = 6
     Dim tailleMax As Double: tailleMax = 18
     Dim tailleTest As Double
+    Dim tailleTrouvée As Double: tailleTrouvée = tailleMin
 
     With c
         .WrapText = True
@@ -51,22 +47,31 @@ Sub AjusterPoliceCellule(c As Range)
 
     For tailleTest = tailleMax To tailleMin Step -0.5
         c.Font.Size = tailleTest
-        c.Rows.AutoFit ' met à jour la hauteur de ligne
 
-        If TexteVisibleComplet(c) Then Exit For
+        ' ❗ On ne touche pas à la hauteur de ligne ici
+        If TexteVisibleComplet(c) Then
+            tailleTrouvée = tailleTest
+            Exit For
+        End If
     Next tailleTest
+
+    c.Font.Size = tailleTrouvée
 End Sub
 
-' === DÉTECTION SI LE TEXTE EST ENTIÈREMENT VISIBLE ===
 Function TexteVisibleComplet(cell As Range) As Boolean
+    Dim visible As Boolean
+    On Error Resume Next
+
     If cell.MergeCells Then
-        TexteVisibleComplet = (Trim(cell.MergeArea.Text) = Trim(cell.MergeArea.Value))
+        visible = (Trim(cell.MergeArea.Text) = Trim(cell.MergeArea.Value))
     Else
-        TexteVisibleComplet = (Trim(cell.Text) = Trim(cell.Value))
+        visible = (Trim(cell.Text) = Trim(cell.Value))
     End If
+
+    TexteVisibleComplet = visible
+    On Error GoTo 0
 End Function
 
-' === DÉTECTION DES CELLULES ENCADRÉES (AVEC BORDURES) ===
 Function ACelluleAvecBordures(cell As Range) As Boolean
     On Error Resume Next
     ACelluleAvecBordures = (cell.Borders(xlEdgeLeft).LineStyle <> xlNone) And _
@@ -76,7 +81,6 @@ Function ACelluleAvecBordures(cell As Range) As Boolean
     On Error GoTo 0
 End Function
 
-' === OPTIONNEL : POUR UN BOUTON OU LANCEMENT RAPIDE ===
 Sub AjusterTailleTableauComplet()
     Call AjusterTaillePolice
 End Sub
