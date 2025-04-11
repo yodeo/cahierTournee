@@ -2,44 +2,50 @@ Option Explicit
 
 Sub AjusterTaillePolice()
     Dim ws As Worksheet
-    Dim cell As Range, mergedCell As Range
+    Dim cell As Range
+    Dim mergedCell As Range
     Dim plageTableau As Range
-    Dim largeurCell As Double, hauteurCell As Double
+    Dim largeurCell As Double
+    Dim hauteurCell As Double
     Dim cellValue As String
+    Dim ctlLabel As Object
 
     Set ws = ActiveSheet
     Set plageTableau = ws.Range("A1:AA43")
-    
-    Application.ScreenUpdating = False
-
-    Dim ctlLabel As Object
     Set ctlLabel = CreateObject("Forms.Label.1")
 
+    ' Appliquer la police par défaut du tableau
     ctlLabel.Font.Name = ws.Cells(1, 1).Font.Name
+    ctlLabel.WordWrap = True
+    ctlLabel.AutoSize = True
+
+    Application.ScreenUpdating = False
 
     For Each cell In plageTableau
         On Error Resume Next
 
         ' Ignorer les lignes paires
-        If cell.Row Mod 2 = 0 Then GoTo SkipCell
-        
+        If cell.Row Mod 2 = 0 Then GoTo NextCell
+
+        ' Traitement cellule fusionnée
         If cell.MergeCells Then
             Set mergedCell = cell.MergeArea
             If cell.Address = mergedCell.Cells(1, 1).Address Then
                 largeurCell = mergedCell.Width
                 hauteurCell = mergedCell.Height
                 cellValue = CStr(mergedCell.Value)
-                Call AjusterTaillePoliceUnique(mergedCell, largeurCell, hauteurCell, cellValue, ctlLabel)
+                Call AjusterTailleAvecMesure(mergedCell, largeurCell, hauteurCell, cellValue, ctlLabel)
             End If
         Else
             If ACelluleAvecBordures(cell) Then
                 largeurCell = cell.Width
                 hauteurCell = cell.Height
                 cellValue = CStr(cell.Value)
-                Call AjusterTaillePoliceUnique(cell, largeurCell, hauteurCell, cellValue, ctlLabel)
+                Call AjusterTailleAvecMesure(cell, largeurCell, hauteurCell, cellValue, ctlLabel)
             End If
         End If
-SkipCell:
+
+NextCell:
         On Error GoTo 0
     Next cell
 
@@ -47,4 +53,50 @@ SkipCell:
     MsgBox "Ajustement terminé !", vbInformation
 End Sub
 
+Sub AjusterTailleAvecMesure(cellRange As Range, largeur As Double, hauteur As Double, texte As String, ctlLabel As Object)
+    Dim tailleMin As Double: tailleMin = 6
+    Dim tailleMax As Double: tailleMax = 18
+    Dim tailleTest As Double
+    Dim ok As Boolean: ok = False
 
+    ctlLabel.Caption = texte
+    ctlLabel.Width = largeur
+    ctlLabel.WordWrap = True
+
+    For tailleTest = tailleMax To tailleMin Step -0.5
+        ctlLabel.Font.Size = tailleTest
+        DoEvents
+        
+        ctlLabel.Width = largeur
+        ctlLabel.AutoSize = True
+
+        ' Si la taille tient dans les dimensions imposées
+        If ctlLabel.Height <= hauteur And ctlLabel.Width <= largeur Then
+            ok = True
+            Exit For
+        End If
+    Next tailleTest
+
+    If ok Then
+        cellRange.Font.Size = tailleTest
+    Else
+        cellRange.Font.Size = tailleMin
+    End If
+
+    cellRange.WrapText = True
+    cellRange.ShrinkToFit = False
+    cellRange.Font.Bold = True
+End Sub
+
+Function ACelluleAvecBordures(cell As Range) As Boolean
+    On Error Resume Next
+    ACelluleAvecBordures = (cell.Borders(xlEdgeLeft).LineStyle <> xlNone) And _
+                           (cell.Borders(xlEdgeRight).LineStyle <> xlNone) And _
+                           (cell.Borders(xlEdgeTop).LineStyle <> xlNone) And _
+                           (cell.Borders(xlEdgeBottom).LineStyle <> xlNone)
+    On Error GoTo 0
+End Function
+
+Sub AjusterTailleTableauComplet()
+    Call AjusterTaillePolice
+End Sub
