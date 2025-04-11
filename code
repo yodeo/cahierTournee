@@ -19,7 +19,8 @@ Sub AjusterTaillePolice()
     ' Objet pour mesurer le texte
     Set ctlLabel = CreateObject("Forms.Label.1")
     ctlLabel.Font.Name = ws.Cells(1, 1).Font.Name
-    ctlLabel.Visible = False ' pas besoin d'afficher
+    ctlLabel.WordWrap = True
+    ctlLabel.AutoSize = True
 
     Application.ScreenUpdating = False
 
@@ -71,7 +72,6 @@ Sub AjusterTailleAvecMesure(cellRange As Range, largeur As Double, hauteur As Do
 
         DoEvents
 
-        ' Remettre autosize pour mesurer la hauteur réelle
         ctlLabel.AutoSize = True
 
         If ctlLabel.Height <= hauteur And ctlLabel.Width <= largeur Then
