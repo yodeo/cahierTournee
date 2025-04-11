@@ -9,7 +9,7 @@ Sub TransposerDonneesSelectionnees()
     Dim maxCol As Long
     Dim currentCaseModule As String
 
-    maxCol = 15 ' Colonne O
+    maxCol = 15
 
     Application.ScreenUpdating = False
     Application.Calculation = xlCalculationManual
@@ -20,9 +20,7 @@ Sub TransposerDonneesSelectionnees()
     ' Supprimer la feuille destination si elle existe
     On Error Resume Next
     Set wsDest = ThisWorkbook.Sheets("Transposé")
-    If Not wsDest Is Nothing Then
-        wsDest.Delete
-    End If
+    If Not wsDest Is Nothing Then wsDest.Delete
     On Error GoTo 0
 
     Set wsDest = ThisWorkbook.Sheets.Add(After:=ThisWorkbook.Sheets(ThisWorkbook.Sheets.Count))
@@ -33,22 +31,25 @@ Sub TransposerDonneesSelectionnees()
 
     lastRow = wsSource.Cells(wsSource.Rows.Count, "A").End(xlUp).Row
 
-    destCol = 2 ' Colonne B
+    destCol = 2
     destRow = 1
 
-    ' Initialiser le module courant avec la valeur de la 2e ligne (ligne 2)
-    currentCaseModule = wsSource.Cells(2, 8).Value
+    ' Trouver la première valeur non vide dans la colonne H
+    For i = 2 To lastRow
+        If Trim(wsSource.Cells(i, 8).Value) <> "" Then
+            currentCaseModule = wsSource.Cells(i, 8).Value
+            Exit For
+        End If
+    Next i
 
-    For i = 2 To lastRow ' Commencer à la ligne 2
+    ' Boucle principale à partir de la ligne 2
+    For i = 2 To lastRow
 
-        ' Détecter un changement de "case module" uniquement à partir de la ligne 3
-        If i > 2 Then
-            If wsSource.Cells(i, 8).Value <> "" And wsSource.Cells(i, 8).Value <> currentCaseModule Then
-                currentCaseModule = wsSource.Cells(i, 8).Value
-                If destCol > 2 Then
-                    destCol = 2
-                    destRow = destRow + 4
-                End If
+        If wsSource.Cells(i, 8).Value <> "" And wsSource.Cells(i, 8).Value <> currentCaseModule Then
+            currentCaseModule = wsSource.Cells(i, 8).Value
+            If destCol > 2 Then
+                destCol = 2
+                destRow = destRow + 4
             End If
         End If
 
@@ -57,21 +58,20 @@ Sub TransposerDonneesSelectionnees()
             destRow = destRow + 4
         End If
 
-        ' Transposer et forcer le format texte (sans égal visible)
-
+        ' Transposer les valeurs en format texte
         With wsDest.Cells(destRow, destCol)
             .NumberFormat = "@"
-            .Value = CStr(wsSource.Cells(i, 1).Text) ' NUM ext
+            .Value = CStr(wsSource.Cells(i, 1).Text)
         End With
 
         With wsDest.Cells(destRow + 1, destCol)
             .NumberFormat = "@"
-            .Value = CStr(wsSource.Cells(i, 4).Text) ' OBSERVATIONS
+            .Value = CStr(wsSource.Cells(i, 4).Text)
         End With
 
         With wsDest.Cells(destRow + 2, destCol)
             .NumberFormat = "@"
-            .Value = CStr(wsSource.Cells(i, 2).Text) ' VOIE
+            .Value = CStr(wsSource.Cells(i, 2).Text)
             .Interior.Color = wsSource.Cells(i, 2).Interior.Color
             .Font.Color = wsSource.Cells(i, 2).Font.Color
         End With
@@ -100,7 +100,6 @@ Sub TransposerDonneesSelectionnees()
     Application.Calculation = xlCalculationAutomatic
     Application.DisplayAlerts = True
 
-    ' Appels aux sous-routines post-traitement
     Call FusionnerCellulesMemeLigne
     Call AjusterDimensions
     Call CentrerCellules
