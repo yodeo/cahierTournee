@@ -6,72 +6,129 @@ Sub TransposerDonneesSelectionnees()
     Dim i As Long
     Dim destCol As Long
     Dim destRow As Long
+    Dim startCol As Long
     Dim maxCol As Long
-    Dim currentCaseModule As String
-
+    Dim currentCaseModule As String ' Variable pour suivre le module actuel
+    
+    ' Définir la colonne maximale (O = 15)
     maxCol = 15
 
+    ' Désactiver les mises à jour de l'écran et les calculs automatiques pour accélérer l'exécution
     Application.ScreenUpdating = False
     Application.Calculation = xlCalculationManual
     Application.DisplayAlerts = False
 
+    ' Définir la feuille de travail source
     Set wsSource = ThisWorkbook.Sheets("Source")
 
-    ' Supprimer la feuille destination si elle existe
+    ' Supprimer la feuille de destination si elle existe déjà
     On Error Resume Next
     Set wsDest = ThisWorkbook.Sheets("Transposé")
-    If Not wsDest Is Nothing Then wsDest.Delete
+    If Not wsDest Is Nothing Then
+        wsDest.Delete
+    End If
     On Error GoTo 0
 
+    ' Créer une nouvelle feuille pour la destination
     Set wsDest = ThisWorkbook.Sheets.Add(After:=ThisWorkbook.Sheets(ThisWorkbook.Sheets.Count))
     wsDest.Name = "Transposé"
 
+    ' Ajouter une colonne pour le CASE MODULE
     wsDest.Columns("A:A").Insert Shift:=xlToRight
     wsDest.Columns("A:A").ColumnWidth = 3
 
+    ' Trouver la dernière ligne des données
     lastRow = wsSource.Cells(wsSource.Rows.Count, "A").End(xlUp).Row
 
-    destCol = 2
+    ' Initialiser la colonne et la ligne de destination
+    destCol = 2 ' On commence à la colonne B car A est réservée pour le CASE MODULE
     destRow = 1
+    currentCaseModule = ""
 
-    ' Trouver la première valeur non vide dans la colonne H
-    For i = 2 To lastRow
-        If Trim(wsSource.Cells(i, 8).Value) <> "" Then
-            currentCaseModule = wsSource.Cells(i, 8).Value
-            Exit For
-        End If
-    Next i
-
-    ' Boucle principale à partir de la ligne 2
-    For i = 2 To lastRow
-
+    ' Transposer les données
+    For i = 1 To lastRow
+        ' Vérifier s'il y a un changement de case dans la colonne H
         If wsSource.Cells(i, 8).Value <> "" And wsSource.Cells(i, 8).Value <> currentCaseModule Then
+            ' Si oui, mettre à jour le numéro de case courant
             currentCaseModule = wsSource.Cells(i, 8).Value
+            
+            ' Passer à la ligne suivante (sauf si on est déjà au début d'une ligne)
             If destCol > 2 Then
                 destCol = 2
                 destRow = destRow + 4
             End If
         End If
-
-        If destCol > maxCol + 1 Then
+        
+        ' Si nous avons atteint la colonne maximale
+        If destCol > maxCol + 1 Then ' +1 car on a décalé avec l'insertion de la colonne A
             destCol = 2
             destRow = destRow + 4
         End If
 
-        ' Transposer les valeurs en format texte
+        ' Transposer les données
+        wsDest.Cells(destRow, destCol).Value = wsSource.Cells(i, 1).Value ' NUM ext
+        wsDest.Cells(destRow + 1, destCol).Value = wsSource.Cells(i, 4).Value ' OBSERVATIONS
+        
+        ' Transposer les données et la couleur de "VOIE"
+        With wsSource.Cells(i, 2)
+            wsDest.Cells(destRow + 2, destCol).Value = .Value ' VOIE
+            wsDest.Cells(destRow + 2, destCol).Interior.Color = .Interior.Color ' Copie de la couleur de fond
+            wsDest.Cells(destRow + 2, destCol).Font.Color = .Font.Color ' Copie de la couleur de police
+        End With
+
+        ' Écrire le numéro de case dans la colonne A
+        wsDest.Cells(destRow, 1).Value = currentCaseModule
+        wsDest.Cells(destRow, 1).Orientation = 90 ' Texte vertical
+        wsDest.Cells(destRow, 1).Font.Bold = True
+        wsDest.Cells(destRow, 1).Interior.Color = RGB(230, 230, 230) ' Fond gris clair
+        
+        ' Ajouter des bordures aux cellules transposées
+        With wsDest.Range(wsDest.Cells(destRow, destCol), wsDest.Cells(destRow + 2, destCol)).Borders
+            .LineStyle = xlContinuous
+            .ColorIndex = 0
+            .TintAndShade = 0
+            .Weight = xlThin
+        End With
+
+        ' Avancer à la colonne suivante
+        destCol = destCol + 1
+    Next i
+    
+    ' Supprimer les 8 premières lignes
+    wsDest.Rows("1:8").Delete
+
+    ' Réactiver les mises à jour de l'écran et les calculs automatiques
+    Application.ScreenUpdating = True
+    Application.Calculation = xlCalculationAutomatic
+    Application.DisplayAlerts = True
+
+    Call FusionnerCellulesMemeLigne
+    Call AjusterDimensions
+    Call CentrerCellules
+    Call FusionnerCellulesCase
+    Call ConfigurerMiseEnPage
+    
+    MsgBox "Création du cahier de tournée terminée!"
+
+End Sub
+
+
+
+ ' Transposer et forcer le format texte (sans égal visible)
+
         With wsDest.Cells(destRow, destCol)
             .NumberFormat = "@"
-            .Value = CStr(wsSource.Cells(i, 1).Text)
+            .Value = CStr(wsSource.Cells(i, 1).Text) ' NUM ext
         End With
 
         With wsDest.Cells(destRow + 1, destCol)
             .NumberFormat = "@"
-            .Value = CStr(wsSource.Cells(i, 4).Text)
+            .Value = CStr(wsSource.Cells(i, 4).Text) ' OBSERVATIONS
         End With
 
         With wsDest.Cells(destRow + 2, destCol)
             .NumberFormat = "@"
-            .Value = CStr(wsSource.Cells(i, 2).Text)
+            .Value = CStr(wsSource.Cells(i, 2).Text) ' VOIE
             .Interior.Color = wsSource.Cells(i, 2).Interior.Color
             .Font.Color = wsSource.Cells(i, 2).Font.Color
         End With
@@ -91,21 +148,5 @@ Sub TransposerDonneesSelectionnees()
             .Weight = xlThin
         End With
 
-        destCol = destCol + 1
-    Next i
 
-    wsDest.Rows("1:8").Delete
 
-    Application.ScreenUpdating = True
-    Application.Calculation = xlCalculationAutomatic
-    Application.DisplayAlerts = True
-
-    Call FusionnerCellulesMemeLigne
-    Call AjusterDimensions
-    Call CentrerCellules
-    Call FusionnerCellulesCase
-    Call ConfigurerMiseEnPage
-
-    MsgBox "Création du cahier de tournée terminée!"
-
-End Sub
