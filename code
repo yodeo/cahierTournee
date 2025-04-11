@@ -10,24 +10,18 @@ Sub AjusterTaillePolice()
     Dim cellValue As String
     Dim ctlLabel As Object
 
-    ' Feuille active
     Set ws = ActiveSheet
-
-    ' Plage du tableau
     Set plageTableau = ws.Range("A1:AA43")
 
-    ' Objet pour mesurer le texte
+    ' Crée un label pour mesurer le texte
     Set ctlLabel = CreateObject("Forms.Label.1")
     ctlLabel.Font.Name = ws.Cells(1, 1).Font.Name
-    ctlLabel.WordWrap = True
-    ctlLabel.AutoSize = True
 
     Application.ScreenUpdating = False
 
     For Each cell In plageTableau
         On Error Resume Next
 
-        ' Ignorer les lignes paires
         If cell.Row Mod 2 = 0 Then GoTo NextCell
 
         If cell.MergeCells Then
@@ -60,21 +54,23 @@ Sub AjusterTailleAvecMesure(cellRange As Range, largeur As Double, hauteur As Do
     Dim tailleMax As Double: tailleMax = 18
     Dim tailleTest As Double
     Dim ok As Boolean: ok = False
+    Dim testHeight As Double
+    Dim testWidth As Double
 
     For tailleTest = tailleMax To tailleMin Step -0.5
         With ctlLabel
             .AutoSize = False
-            .WordWrap = True
-            .Width = largeur
+            .WordWrap = False
+            .Width = 1000 ' large temporairement pour éviter bug
             .Caption = texte
             .Font.Size = tailleTest
+            .AutoSize = True
         End With
 
-        DoEvents
+        testHeight = ctlLabel.Height
+        testWidth = ctlLabel.Width
 
-        ctlLabel.AutoSize = True
-
-        If ctlLabel.Height <= hauteur And ctlLabel.Width <= largeur Then
+        If testWidth <= largeur And testHeight <= hauteur Then
             ok = True
             Exit For
         End If
