@@ -1,6 +1,6 @@
 Option Explicit
 
-Sub AjusterTaillePolice()
+Sub AjusterTailleLibellesVoies()
     Dim ws As Worksheet
     Dim cell As Range
     Dim plageTableau As Range
@@ -13,24 +13,21 @@ Sub AjusterTaillePolice()
     For Each cell In plageTableau
         On Error Resume Next
 
-        If cell.Row Mod 2 = 0 Then GoTo NextCell
-
-        If cell.MergeCells Then
-            If cell.Address = cell.MergeArea.Cells(1, 1).Address Then
-                Call AjusterPoliceCellule(cell.MergeArea)
-            End If
-        Else
-            If ACelluleAvecBordures(cell) And Not IsEmpty(cell.Value) Then
-                Call AjusterPoliceCellule(cell)
+        ' ✅ On ne traite QUE les lignes paires (libellés de voie)
+        If cell.Row Mod 2 = 0 Then
+            ' ✅ Cellule non fusionnée uniquement
+            If Not cell.MergeCells Then
+                If ACelluleAvecBordures(cell) And Not IsEmpty(cell.Value) Then
+                    Call AjusterPoliceCellule(cell)
+                End If
             End If
         End If
 
-NextCell:
         On Error GoTo 0
     Next cell
 
     Application.ScreenUpdating = True
-    MsgBox "Taille de police ajustée sans modifier les hauteurs ✔️", vbInformation
+    MsgBox "Police ajustée uniquement sur les libellés de voie ✔️", vbInformation
 End Sub
 
 Sub AjusterPoliceCellule(c As Range)
@@ -48,7 +45,6 @@ Sub AjusterPoliceCellule(c As Range)
     For tailleTest = tailleMax To tailleMin Step -0.5
         c.Font.Size = tailleTest
 
-        ' ❗ On ne touche pas à la hauteur de ligne ici
         If TexteVisibleComplet(c) Then
             tailleTrouvée = tailleTest
             Exit For
@@ -62,11 +58,7 @@ Function TexteVisibleComplet(cell As Range) As Boolean
     Dim visible As Boolean
     On Error Resume Next
 
-    If cell.MergeCells Then
-        visible = (Trim(cell.MergeArea.Text) = Trim(cell.MergeArea.Value))
-    Else
-        visible = (Trim(cell.Text) = Trim(cell.Value))
-    End If
+    visible = (Trim(cell.Text) = Trim(cell.Value))
 
     TexteVisibleComplet = visible
     On Error GoTo 0
@@ -80,7 +72,3 @@ Function ACelluleAvecBordures(cell As Range) As Boolean
                            (cell.Borders(xlEdgeBottom).LineStyle <> xlNone)
     On Error GoTo 0
 End Function
-
-Sub AjusterTailleTableauComplet()
-    Call AjusterTaillePolice
-End Sub
